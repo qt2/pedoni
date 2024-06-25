@@ -1,0 +1,9 @@
+[[pedestrians]]
+origin = [0, 0]
+destination = [4, 4]
+
+[[walls]]
+vertice = [[0, 1], [1, 2]]
+
+[[walls]]
+vertice = [[0, 3], [1, 4]]
