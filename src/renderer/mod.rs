@@ -1,7 +1,9 @@
-mod camera;
+pub mod camera;
+pub mod pedestrian;
 
 use std::mem;
 
+use camera::CameraResources;
 use eframe::{
     egui,
     wgpu::{
@@ -13,8 +15,7 @@ use eframe::{
         RenderPipelineDescriptor, ShaderStages, VertexAttribute, VertexBufferLayout, VertexState,
     },
 };
-
-use crate::simulator::Simulator;
+use pedestrian::PedestrianRenderResources;
 
 use self::camera::Camera;
 
@@ -22,11 +23,31 @@ pub struct Renderer {
     camera: Camera,
 }
 
+impl eframe::App for Renderer {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.heading("Pedoni");
+            // ui.label(format!(
+            //     "Number of pedestrians: {}",
+            //     self.simulator.pedestrians.len(),
+            // ));
+            // ui.label(format!(
+            //     "Calculation time per frame: {:.4}s",
+            //     self.simulate_time.as_secs_f64()
+            // ));
+            egui::Frame::canvas(ui.style()).show(ui, |ui| {
+                self.draw_canvas(ui, ctx);
+            });
+        });
+
+        ctx.request_repaint();
+    }
+}
+
 impl Renderer {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         let render_state = cc.wgpu_render_state.as_ref().unwrap();
         let device = &render_state.device;
-        let shader = device.create_shader_module(include_wgsl!("./shader.wgsl"));
 
         let camera = Camera::default();
         let camera_buffer = device.create_buffer_init(&BufferInitDescriptor {
@@ -57,77 +78,21 @@ impl Renderer {
             label: Some("camera"),
         });
 
-        let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
-            label: Some("pedestrians"),
-            bind_group_layouts: &[&camera_bind_group_layout],
-            ..Default::default()
-        });
-        let pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
-            label: Some("pedestrians"),
-            layout: Some(&pipeline_layout),
-            vertex: VertexState {
-                module: &shader,
-                entry_point: "vs_main",
-                buffers: &[Vertex::desc(), Instance::desc()],
-            },
-            fragment: Some(FragmentState {
-                module: &shader,
-                entry_point: "fs_main",
-                targets: &[Some(render_state.target_format.into())],
-            }),
-            primitive: PrimitiveState::default(),
-            depth_stencil: None,
-            multisample: MultisampleState::default(),
-            multiview: None,
-        });
-        let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("vertex buffer"),
-            contents: bytemuck::cast_slice(&[
-                Vertex {
-                    position: [-0.5, -0.5],
-                },
-                Vertex {
-                    position: [0.5, -0.5],
-                },
-                Vertex {
-                    position: [-0.5, 0.5],
-                },
-                Vertex {
-                    position: [0.5, 0.5],
-                },
-            ]),
-            usage: BufferUsages::VERTEX,
-        });
-        let index_buffer = device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("index buffer"),
-            contents: bytemuck::cast_slice(&[0u16, 1, 2, 2, 1, 3]),
-            usage: BufferUsages::INDEX,
-        });
+        let resources = &mut render_state.renderer.write().callback_resources;
 
-        let instances: Vec<Instance> = Vec::new();
-        let instance_buffer = device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("instance buffer"),
-            contents: bytemuck::cast_slice(&instances),
-            usage: BufferUsages::VERTEX,
+        resources.insert(CameraResources {
+            camera_bind_group,
+            camera_buffer,
         });
-
-        render_state
-            .renderer
-            .write()
-            .callback_resources
-            .insert(PedestrianRenderResources {
-                pipeline,
-                vertex_buffer,
-                index_buffer,
-                instance_buffer,
-                camera_buffer,
-                camera_bind_group,
-            });
+        resources.insert(PedestrianRenderResources::new(
+            render_state,
+            &camera_bind_group_layout,
+        ));
 
         Renderer { camera }
     }
 
-    pub fn draw_canvas(&mut self, ui: &mut egui::Ui, ctx: &egui::Context, simulator: &Simulator) {
+    pub fn draw_canvas(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
         let size = ui.available_size();
         let (rect, response) = ui.allocate_exact_size(size, egui::Sense::drag());
 
@@ -154,7 +119,12 @@ impl Renderer {
         //     })
         //     .collect();
 
-        let pedestrians = Vec::new();
+        // let pedestrians = Vec::new();
+
+        let pedestrians = vec![Instance {
+            position: [0.0, 0.0],
+            color: Color::RED.into(),
+        }];
 
         ui.painter().add(egui_wgpu::Callback::new_paint_callback(
             rect,
@@ -212,52 +182,6 @@ impl egui_wgpu::CallbackTrait for CustomCallback {
         render_pass.set_index_buffer(resources.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
         render_pass.draw_indexed(0..6, 0, 0..self.pedestrians.len() as u32);
         // render_pass.draw(0..3, 0..1);
-    }
-}
-
-struct PedestrianRenderResources {
-    pipeline: RenderPipeline,
-    vertex_buffer: Buffer,
-    index_buffer: Buffer,
-    instance_buffer: Buffer,
-    camera_buffer: Buffer,
-    camera_bind_group: BindGroup,
-}
-
-#[repr(C)]
-#[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
-struct Vertex {
-    position: [f32; 2],
-}
-
-impl Vertex {
-    const ATTRIBS: [VertexAttribute; 1] = wgpu::vertex_attr_array![0  => Float32x2];
-
-    fn desc() -> VertexBufferLayout<'static> {
-        VertexBufferLayout {
-            array_stride: mem::size_of::<Self>() as BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &Self::ATTRIBS,
-        }
-    }
-}
-
-#[repr(C)]
-#[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
-struct Instance {
-    position: [f32; 2],
-    color: u32,
-}
-
-impl Instance {
-    const ATTRIBS: [VertexAttribute; 2] = wgpu::vertex_attr_array![3  => Float32x2, 4 => Uint32];
-
-    fn desc() -> VertexBufferLayout<'static> {
-        VertexBufferLayout {
-            array_stride: mem::size_of::<Self>() as BufferAddress,
-            step_mode: wgpu::VertexStepMode::Instance,
-            attributes: &Self::ATTRIBS,
-        }
     }
 }
 

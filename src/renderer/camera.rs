@@ -1,3 +1,5 @@
+use eframe::wgpu::{BindGroup, Buffer};
+
 #[repr(C)]
 #[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Camera {
@@ -16,4 +18,9 @@ impl Default for Camera {
             _padding: 0,
         }
     }
+}
+
+pub struct CameraResources {
+    pub camera_buffer: Buffer,
+    pub camera_bind_group: BindGroup,
 }
