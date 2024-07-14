@@ -52,10 +52,10 @@ impl Instance {
 }
 
 pub struct PedestrianRenderResources {
-    pipeline: RenderPipeline,
-    vertex_buffer: Buffer,
-    index_buffer: Buffer,
-    instance_buffer: Buffer,
+    pub pipeline: RenderPipeline,
+    pub vertex_buffer: Buffer,
+    pub index_buffer: Buffer,
+    pub instance_buffer: Buffer,
     // camera_buffer: Buffer,
     // camera_bind_group: BindGroup,
 }

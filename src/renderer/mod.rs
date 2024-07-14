@@ -25,8 +25,15 @@ pub struct Renderer {
 
 impl eframe::App for Renderer {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
+            ui.horizontal_wrapped(|ui| {
+                ui.visuals_mut().button_frame = false;
+                for name in ["File", "Edit", "View"] {
+                    if ui.selectable_label(false, name).clicked() {}
+                }
+            });
+        });
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Pedoni");
             // ui.label(format!(
             //     "Number of pedestrians: {}",
             //     self.simulator.pedestrians.len(),
@@ -39,6 +46,14 @@ impl eframe::App for Renderer {
                 self.draw_canvas(ui, ctx);
             });
         });
+
+        egui::Window::new("controller")
+            .open(&mut true)
+            .show(ctx, |ui| {
+                ui.heading("Controller");
+                if ui.button("Pause").clicked() {}
+                ui.add(egui::DragValue::new(&mut 30));
+            });
 
         ctx.request_repaint();
     }
@@ -121,69 +136,69 @@ impl Renderer {
 
         // let pedestrians = Vec::new();
 
-        let pedestrians = vec![Instance {
-            position: [0.0, 0.0],
-            color: Color::RED.into(),
-        }];
+        // let pedestrians = vec![Instance {
+        //     position: [0.0, 0.0],
+        //     color: Color::RED.into(),
+        // }];
 
-        ui.painter().add(egui_wgpu::Callback::new_paint_callback(
-            rect,
-            CustomCallback {
-                camera: self.camera.clone(),
-                pedestrians,
-            },
-        ));
+        // ui.painter().add(egui_wgpu::Callback::new_paint_callback(
+        //     rect,
+        //     CustomCallback {
+        //         camera: self.camera.clone(),
+        //         pedestrians,
+        //     },
+        // ));
     }
 }
 
-struct CustomCallback {
-    camera: Camera,
-    pedestrians: Vec<Instance>,
-}
+// struct CustomCallback {
+//     camera: Camera,
+//     pedestrians: Vec<Instance>,
+// }
 
-impl egui_wgpu::CallbackTrait for CustomCallback {
-    fn prepare(
-        &self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        _screen_descriptor: &egui_wgpu::ScreenDescriptor,
-        _egui_encoder: &mut wgpu::CommandEncoder,
-        callback_resources: &mut egui_wgpu::CallbackResources,
-    ) -> Vec<wgpu::CommandBuffer> {
-        let resources: &mut PedestrianRenderResources = callback_resources.get_mut().unwrap();
+// impl egui_wgpu::CallbackTrait for CustomCallback {
+//     fn prepare(
+//         &self,
+//         device: &wgpu::Device,
+//         queue: &wgpu::Queue,
+//         _screen_descriptor: &egui_wgpu::ScreenDescriptor,
+//         _egui_encoder: &mut wgpu::CommandEncoder,
+//         callback_resources: &mut egui_wgpu::CallbackResources,
+//     ) -> Vec<wgpu::CommandBuffer> {
+//         let resources: &mut PedestrianRenderResources = callback_resources.get_mut().unwrap();
 
-        queue.write_buffer(
-            &resources.camera_buffer,
-            0,
-            bytemuck::cast_slice(&[self.camera]),
-        );
+//         queue.write_buffer(
+//             &resources.camera_buffer,
+//             0,
+//             bytemuck::cast_slice(&[self.camera]),
+//         );
 
-        resources.instance_buffer = device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("instance buffer"),
-            contents: bytemuck::cast_slice(&self.pedestrians),
-            usage: BufferUsages::VERTEX,
-        });
+//         resources.instance_buffer = device.create_buffer_init(&BufferInitDescriptor {
+//             label: Some("instance buffer"),
+//             contents: bytemuck::cast_slice(&self.pedestrians),
+//             usage: BufferUsages::VERTEX,
+//         });
 
-        Vec::new()
-    }
+//         Vec::new()
+//     }
 
-    fn paint<'a>(
-        &'a self,
-        _info: egui::PaintCallbackInfo,
-        render_pass: &mut eframe::wgpu::RenderPass<'a>,
-        callback_resources: &'a egui_wgpu::CallbackResources,
-    ) {
-        let resources: &PedestrianRenderResources = callback_resources.get().unwrap();
+//     fn paint<'a>(
+//         &'a self,
+//         _info: egui::PaintCallbackInfo,
+//         render_pass: &mut eframe::wgpu::RenderPass<'a>,
+//         callback_resources: &'a egui_wgpu::CallbackResources,
+//     ) {
+//         let resources: &PedestrianRenderResources = callback_resources.get().unwrap();
 
-        render_pass.set_pipeline(&resources.pipeline);
-        render_pass.set_bind_group(0, &resources.camera_bind_group, &[]);
-        render_pass.set_vertex_buffer(0, resources.vertex_buffer.slice(..));
-        render_pass.set_vertex_buffer(1, resources.instance_buffer.slice(..));
-        render_pass.set_index_buffer(resources.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-        render_pass.draw_indexed(0..6, 0, 0..self.pedestrians.len() as u32);
-        // render_pass.draw(0..3, 0..1);
-    }
-}
+//         render_pass.set_pipeline(&resources.pipeline);
+//         render_pass.set_bind_group(0, &resources.camera_bind_group, &[]);
+//         render_pass.set_vertex_buffer(0, resources.vertex_buffer.slice(..));
+//         render_pass.set_vertex_buffer(1, resources.instance_buffer.slice(..));
+//         render_pass.set_index_buffer(resources.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+//         render_pass.draw_indexed(0..6, 0, 0..self.pedestrians.len() as u32);
+//         // render_pass.draw(0..3, 0..1);
+//     }
+// }
 
 #[derive(Debug, Clone, Copy)]
 pub struct Color {
