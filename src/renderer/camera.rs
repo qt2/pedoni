@@ -1,4 +1,12 @@
-use eframe::wgpu::{BindGroup, Buffer};
+use std::sync::Arc;
+
+use eframe::wgpu::{
+    util::{BufferInitDescriptor, DeviceExt},
+    BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
+    BindGroupLayoutEntry, BindingType, Buffer, BufferBindingType, BufferUsages, Device,
+    ShaderStages,
+};
+use egui_wgpu::RenderState;
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
@@ -23,4 +31,46 @@ impl Default for Camera {
 pub struct CameraResources {
     pub camera_buffer: Buffer,
     pub camera_bind_group: BindGroup,
+    pub camera_bind_group_layout: BindGroupLayout,
+}
+
+impl CameraResources {
+    pub fn prepare(render_state: &RenderState) -> Self {
+        let device = &render_state.device;
+
+        let camera = Camera::default();
+        let camera_buffer = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("camera buffer"),
+            contents: bytemuck::cast_slice(&[camera]),
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        });
+        let camera_bind_group_layout =
+            device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+                entries: &[BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: ShaderStages::VERTEX,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+                label: Some("camera"),
+            });
+        let camera_bind_group = device.create_bind_group(&BindGroupDescriptor {
+            layout: &camera_bind_group_layout,
+            entries: &[BindGroupEntry {
+                binding: 0,
+                resource: camera_buffer.as_entire_binding(),
+            }],
+            label: Some("camera"),
+        });
+
+        CameraResources {
+            camera_buffer,
+            camera_bind_group,
+            camera_bind_group_layout,
+        }
+    }
 }
