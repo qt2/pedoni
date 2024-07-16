@@ -3,15 +3,14 @@ pub mod simulator;
 
 use std::{
     fs,
-    sync::Arc,
+    sync::RwLock,
     thread,
     time::{Duration, Instant},
 };
 
 use clap::Parser;
-use eframe::wgpu::DeviceDescriptor;
-use egui_wgpu::WgpuConfiguration;
 use nalgebra::{Vector2, Vector3};
+use once_cell::sync::Lazy;
 
 use crate::{
     renderer::Renderer,
@@ -21,20 +20,28 @@ use crate::{
 pub type Vec2 = Vector2<f32>;
 pub type Vec3 = Vector3<f32>;
 
+static SIMULATOR: Lazy<RwLock<Simulator>> = Lazy::new(|| RwLock::new(Simulator::with_random()));
+
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
     let scenario = fs::read_to_string(&args.scenario)?;
-    let scenario: Scenario = toml::from_str(&scenario)?;
+    let _scenario: Scenario = toml::from_str(&scenario)?;
 
-    let mut simulator = Simulator::new(scenario);
-
-    let min_interval = Duration::from_secs_f32(100.0 * args.delta_time / args.playback_speed);
+    let min_interval = Duration::from_secs_f32(0.001 * args.delta_time / args.playback_speed);
 
     thread::spawn(move || loop {
         let start = Instant::now();
 
-        simulator.tick();
+        let accels = {
+            let simulator = SIMULATOR.read().unwrap();
+            simulator.calc_acceleration()
+        };
+
+        {
+            let mut simulator = SIMULATOR.write().unwrap();
+            simulator.tick(accels);
+        }
 
         let calc_time = Instant::now() - start;
 
@@ -69,6 +76,6 @@ struct Args {
     delta_time: f32,
 
     /// Max playback speed (default: 10x)
-    #[arg(short, long, default_value_t = 10.0)]
+    #[arg(short, long, default_value_t = 1.0)]
     playback_speed: f32,
 }

@@ -1,13 +1,13 @@
 pub mod camera;
-pub mod pedestrian;
 pub mod polygon;
+pub mod sprite;
 pub mod texture;
 
-use camera::CameraResources;
+use camera::{Camera, CameraResources};
 use eframe::egui;
 use polygon::{PolygonRenderCallback, PolygonRenderResources};
 
-use self::camera::Camera;
+use crate::SIMULATOR;
 
 pub struct Renderer {
     camera: Camera,
@@ -73,74 +73,24 @@ impl Renderer {
         let size = rect.size();
         self.camera.rect = [size.x, size.y];
 
-        // let pedestrians: Vec<_> = simulator
-        //     .pedestrians
-        //     .iter()
-        //     .filter(|p| !p.has_arrived_goal)
-        //     .map(|p| {
-        //         let color = Color::pick(p.trip_id);
-        //         Instance {
-        //             position: p.position.into(),
-        //             color: color.into(),
-        //         }
-        //     })
-        //     .collect();
-
-        // let pedestrians = Vec::new();
-
-        // let pedestrians = vec![Instance {
-        //     position: [0.0, 0.0],
-        //     color: Color::RED.into(),
-        // }];
+        let instances: Vec<_> = {
+            let simulator = SIMULATOR.read().unwrap();
+            simulator
+                .pedestrians
+                .iter()
+                .map(|p| polygon::Instance {
+                    position: p.pos.into(),
+                    color: 0xffff,
+                })
+                .collect()
+        };
 
         ui.painter().add(egui_wgpu::Callback::new_paint_callback(
             rect,
             PolygonRenderCallback {
                 camera: self.camera.clone(),
-                polygons: vec![],
+                instances,
             },
         ));
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct Color {
-    r: u8,
-    g: u8,
-    b: u8,
-    a: u8,
-}
-
-impl Color {
-    const fn new(r: u8, g: u8, b: u8, a: u8) -> Self {
-        Color { r, g, b, a }
-    }
-
-    pub const WHITE: Color = Color::new(255, 255, 255, 255);
-    pub const MAGENTA: Color = Color::new(255, 0, 255, 255);
-    pub const YELLOW: Color = Color::new(255, 255, 0, 255);
-    pub const CYAN: Color = Color::new(0, 255, 255, 255);
-    pub const RED: Color = Color::new(255, 0, 0, 255);
-    pub const GREEN: Color = Color::new(0, 255, 0, 255);
-    pub const BLUE: Color = Color::new(0, 0, 255, 255);
-    pub const BLACK: Color = Color::new(0, 0, 0, 255);
-
-    pub const PALLET: [Color; 6] = [
-        Color::MAGENTA,
-        Color::CYAN,
-        Color::YELLOW,
-        Color::RED,
-        Color::BLUE,
-        Color::GREEN,
-    ];
-
-    const fn pick(value: usize) -> Self {
-        Color::PALLET[value % Color::PALLET.len()]
-    }
-}
-
-impl From<Color> for u32 {
-    fn from(c: Color) -> Self {
-        u32::from_le_bytes([c.r, c.g, c.b, c.a])
     }
 }

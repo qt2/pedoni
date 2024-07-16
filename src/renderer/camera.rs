@@ -1,10 +1,7 @@
-use std::sync::Arc;
-
 use eframe::wgpu::{
     util::{BufferInitDescriptor, DeviceExt},
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
-    BindGroupLayoutEntry, BindingType, Buffer, BufferBindingType, BufferUsages, Device,
-    ShaderStages,
+    BindGroupLayoutEntry, BindingType, Buffer, BufferBindingType, BufferUsages, ShaderStages,
 };
 use egui_wgpu::RenderState;
 

@@ -1,4 +1,4 @@
-use std::{mem, sync::Arc};
+use std::mem;
 
 use eframe::{
     egui,
@@ -16,11 +16,6 @@ use super::{
     camera::{Camera, CameraResources},
     texture::Texture,
 };
-
-#[derive(Debug, Default, Clone)]
-pub struct Polygon {
-    pub vertice: Vec<Vertex>,
-}
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
@@ -43,9 +38,9 @@ impl Vertex {
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
-struct Instance {
-    position: [f32; 2],
-    color: u32,
+pub struct Instance {
+    pub position: [f32; 2],
+    pub color: u32,
 }
 
 impl Instance {
@@ -193,7 +188,7 @@ impl PolygonRenderResources {
 
 pub struct PolygonRenderCallback {
     pub camera: Camera,
-    pub polygons: Vec<Polygon>,
+    pub instances: Vec<Instance>,
 }
 
 impl egui_wgpu::CallbackTrait for PolygonRenderCallback {
@@ -219,10 +214,7 @@ impl egui_wgpu::CallbackTrait for PolygonRenderCallback {
 
             resources.instance_buffer = device.create_buffer_init(&BufferInitDescriptor {
                 label: Some("instance buffer"),
-                contents: bytemuck::cast_slice(&[Instance {
-                    position: [0.0; 2],
-                    color: 0xffff,
-                }]),
+                contents: bytemuck::cast_slice(&self.instances),
                 usage: BufferUsages::VERTEX,
             });
         }
@@ -245,7 +237,7 @@ impl egui_wgpu::CallbackTrait for PolygonRenderCallback {
         render_pass.set_vertex_buffer(0, resources.vertex_buffer.slice(..));
         render_pass.set_vertex_buffer(1, resources.instance_buffer.slice(..));
         render_pass.set_index_buffer(resources.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-        render_pass.draw_indexed(0..4, 0, 0..1 as u32);
+        render_pass.draw_indexed(0..4, 0, 0..self.instances.len() as u32);
         // render_pass.draw(0..3, 0..1);
     }
 }
