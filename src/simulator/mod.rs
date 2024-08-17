@@ -3,7 +3,7 @@ pub mod scenario;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
 
 use self::scenario::Scenario;
-use crate::Vec2;
+use glam::{vec2, Vec2};
 
 const DELTA_T: f32 = 0.1;
 const TAU_A: f32 = 0.5;
@@ -56,10 +56,14 @@ impl Simulator {
         let es: Vec<_> = self
             .pedestrians
             .iter()
-            .map(|p| (p.destination - p.pos).normalize())
+            .map(|p| {
+                (p.destination - p.pos)
+                    .try_normalize()
+                    .unwrap_or(vec2(1.0, 0.0))
+            })
             .collect();
 
-        let mut accels = vec![Vec2::zeros(); self.pedestrians.len()];
+        let mut accels = vec![Vec2::ZERO; self.pedestrians.len()];
 
         accels.par_iter_mut().enumerate().for_each(|(i, acc)| {
             let a = &self.pedestrians[i];
@@ -75,13 +79,12 @@ impl Simulator {
                     continue;
                 }
                 let r_ab = a.pos - b.pos;
-                let r_ab_mag = r_ab.magnitude();
+                let r_ab_mag = r_ab.length();
                 let move_b = b.vel * 2.0;
                 let r_ab_mv = r_ab - move_b;
-                let r_ab_mv_mag = r_ab_mv.magnitude();
+                let r_ab_mv_mag = r_ab_mv.length();
 
-                let b =
-                    0.5 * ((r_ab_mag + r_ab_mv_mag).powi(2) - move_b.magnitude_squared()).sqrt();
+                let b = 0.5 * ((r_ab_mag + r_ab_mv_mag).powi(2) - move_b.length_squared()).sqrt();
                 let grad_b =
                     (r_ab_mag + r_ab_mv_mag) * (r_ab / r_ab_mag + r_ab_mv / r_ab_mv_mag) * 0.25 / b;
                 let f_ab = 2.1 / 0.3 * (-b / 0.3).exp() * grad_b;
@@ -98,8 +101,8 @@ impl Simulator {
             .par_iter_mut()
             .zip(&accels)
             .for_each(|(a, acc)| {
-                a.vel_prefered += acc * DELTA_T;
-                a.vel = a.vel_prefered.cap_magnitude(a.vmax);
+                a.vel_prefered += *acc * DELTA_T;
+                a.vel = a.vel_prefered.clamp_length_max(a.vmax);
                 a.pos += a.vel * DELTA_T;
             });
     }

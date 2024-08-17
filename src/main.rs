@@ -17,9 +17,6 @@ use crate::{
     simulator::{scenario::Scenario, Simulator},
 };
 
-pub type Vec2 = Vector2<f32>;
-pub type Vec3 = Vector3<f32>;
-
 static SIMULATOR: Lazy<RwLock<Simulator>> = Lazy::new(|| RwLock::new(Simulator::with_random()));
 
 fn main() -> anyhow::Result<()> {

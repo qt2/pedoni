@@ -1,7 +1,7 @@
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
 
-use crate::Vec2;
+use glam::Vec2;
 
 /// Scenario data
 #[derive(Debug, Default, Deserialize)]

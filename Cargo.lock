@@ -1416,6 +1416,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "glam"
+version = "0.28.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "779ae4bf7e8421cf91c0b3b64e7e8b40b862fba4d393f59150042de7c4965a94"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "glow"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2304,6 +2313,7 @@ dependencies = [
  "egui-wgpu",
  "fastrand 2.1.0",
  "fastrand-contrib",
+ "glam",
  "image 0.25.1",
  "nalgebra",
  "once_cell",

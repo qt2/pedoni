@@ -4,7 +4,7 @@ pub mod sprite;
 pub mod texture;
 
 use camera::{Camera, CameraResources};
-use eframe::egui;
+use eframe::egui::{self, pos2, vec2, Color32, Vec2};
 use polygon::{PolygonRenderCallback, PolygonRenderResources};
 
 use crate::SIMULATOR;
@@ -23,6 +23,7 @@ impl eframe::App for Renderer {
                 }
             });
         });
+
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::Frame::canvas(ui.style()).show(ui, |ui| {
                 self.draw_canvas(ui, ctx);
@@ -62,6 +63,7 @@ impl Renderer {
     pub fn draw_canvas(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
         let size = ui.available_size();
         let (rect, response) = ui.allocate_exact_size(size, egui::Sense::drag());
+        ui.set_clip_rect(rect);
 
         let delta_wheel_y = ctx.input(|i| i.smooth_scroll_delta).y;
         self.camera.scale *= 2.0_f32.powf(delta_wheel_y * 0.01);
@@ -73,25 +75,21 @@ impl Renderer {
         let size = rect.size();
         self.camera.rect = [size.x, size.y];
 
-        let instances: Vec<_> = {
-            let simulator = SIMULATOR.read().unwrap();
-            simulator
-                .pedestrians
-                .iter()
-                .map(|p| polygon::Instance {
-                    position: p.pos.into(),
-                    rect: [0.0, 0.0, 0.125, 0.125],
-                    color: 0xffff,
-                })
-                .collect()
-        };
+        let camera_pos = Vec2::from(&self.camera.position);
+        let camera_scale = self.camera.scale;
 
-        ui.painter().add(egui_wgpu::Callback::new_paint_callback(
-            rect,
-            PolygonRenderCallback {
-                camera: self.camera.clone(),
-                instances,
-            },
-        ));
+        let simulator = SIMULATOR.read().unwrap();
+
+        simulator.pedestrians.iter().for_each(|p| {
+            let pos = camera_scale * (vec2(p.pos.x, p.pos.y) - camera_pos);
+            ui.painter()
+                .circle_filled(pos.to_pos2(), 0.125 * camera_scale, Color32::BLUE);
+        });
+
+        simulator.pedestrians.iter().for_each(|p| {
+            let pos = camera_scale * (vec2(p.pos.x, p.pos.y) - camera_pos) * 2.0;
+            ui.painter()
+                .circle_filled(pos.to_pos2(), 0.125 * camera_scale, Color32::RED);
+        });
     }
 }
