@@ -80,6 +80,7 @@ impl Renderer {
                 .iter()
                 .map(|p| polygon::Instance {
                     position: p.pos.into(),
+                    rect: [0.0, 0.0, 0.125, 0.125],
                     color: 0xffff,
                 })
                 .collect()

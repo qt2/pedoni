@@ -40,11 +40,13 @@ impl Vertex {
 #[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Instance {
     pub position: [f32; 2],
+    pub rect: [f32; 4],
     pub color: u32,
 }
 
 impl Instance {
-    const ATTRIBS: [VertexAttribute; 2] = wgpu::vertex_attr_array![3  => Float32x2, 4 => Uint32];
+    const ATTRIBS: [VertexAttribute; 3] =
+        wgpu::vertex_attr_array![3  => Float32x2, 4 => Float32x4, 5 => Uint32];
 
     fn desc() -> VertexBufferLayout<'static> {
         VertexBufferLayout {

@@ -18,7 +18,8 @@ struct VertexInput {
 
 struct InstanceInput {
     @location(3) position: vec2<f32>,
-    @location(4) color: u32,
+    @location(4) rect: vec4<f32>,
+    @location(5) color: u32,
 }
 
 struct VertexOutput {
@@ -38,7 +39,7 @@ fn vs_main(
     let relative_position = camera.scale * (position - camera.position) / camera.rect;
     out.clip_position = vec4<f32>(relative_position, 0.0, 1.0);
     out.color = instance.color;
-    out.uv = model.uv / 8.0;
+    out.uv = instance.rect.xy + instance.rect.zw * model.uv;
     return out;
 }
 

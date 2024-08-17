@@ -23,8 +23,10 @@ impl Simulator {
         let walls = scenario
             .walls
             .iter()
-            .map(|c| Wall {
-                pos: c.vertice.clone(),
+            .flat_map(|c| {
+                c.polygon.windows(2).map(|polygon| Wall {
+                    polygon: polygon.try_into().unwrap(),
+                })
             })
             .collect();
 
@@ -51,14 +53,40 @@ impl Simulator {
     }
 
     pub fn calc_acceleration(&self) -> Vec<Vec2> {
+        let es: Vec<_> = self
+            .pedestrians
+            .iter()
+            .map(|p| (p.destination - p.pos).normalize())
+            .collect();
+
         let mut accels = vec![Vec2::zeros(); self.pedestrians.len()];
 
         accels.par_iter_mut().enumerate().for_each(|(i, acc)| {
             let a = &self.pedestrians[i];
-            let e_a = (a.destination - a.pos).normalize();
+            let e_a = es[i];
+
+            // Acceleration term
             let f0_a = INV_TAU_A * (a.v0 * e_a - a.vel);
-            let f_a = f0_a;
-            *acc = f_a;
+            *acc += f0_a;
+
+            // Repulsive force from other pedestrians
+            for (j, b) in self.pedestrians.iter().enumerate() {
+                if i == j {
+                    continue;
+                }
+                let r_ab = a.pos - b.pos;
+                let r_ab_mag = r_ab.magnitude();
+                let move_b = b.vel * 2.0;
+                let r_ab_mv = r_ab - move_b;
+                let r_ab_mv_mag = r_ab_mv.magnitude();
+
+                let b =
+                    0.5 * ((r_ab_mag + r_ab_mv_mag).powi(2) - move_b.magnitude_squared()).sqrt();
+                let grad_b =
+                    (r_ab_mag + r_ab_mv_mag) * (r_ab / r_ab_mag + r_ab_mv / r_ab_mv_mag) * 0.25 / b;
+                let f_ab = 2.1 / 0.3 * (-b / 0.3).exp() * grad_b;
+                *acc += f_ab;
+            }
         });
 
         accels
@@ -80,7 +108,7 @@ impl Simulator {
 /// Wall instance
 #[derive(Debug)]
 pub struct Wall {
-    pub pos: Vec<Vec2>,
+    pub polygon: [Vec2; 2],
 }
 
 /// Pedestrian instance
@@ -88,21 +116,25 @@ pub struct Wall {
 pub struct Pedestrian {
     pub pos: Vec2,
     pub vel: Vec2,
+    pub vel_prefered: Vec2,
     pub destination: Vec2,
     pub v0: f32,
-    pub vel_prefered: Vec2,
     pub vmax: f32,
 }
 
 impl Default for Pedestrian {
     fn default() -> Self {
+        // default parameters from https://arxiv.org/abs/cond-mat/9805244
+
+        let v0 = fastrand_contrib::f32_normal_approx(1.34, 0.26);
+
         Pedestrian {
             pos: Vec2::default(),
             vel: Vec2::default(),
-            destination: Vec2::default(),
-            v0: 1.34,
             vel_prefered: Vec2::default(),
-            vmax: 1.3 * 1.34,
+            destination: Vec2::default(),
+            v0,
+            vmax: v0 * 1.3,
         }
     }
 }

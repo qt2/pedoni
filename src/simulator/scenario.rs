@@ -1,3 +1,4 @@
+use rustc_hash::FxHashMap;
 use serde::Deserialize;
 
 use crate::Vec2;
@@ -6,9 +7,24 @@ use crate::Vec2;
 #[derive(Debug, Default, Deserialize)]
 pub struct Scenario {
     pub walls: Vec<WallConfig>,
+    pub waypoints: FxHashMap<usize, WallConfig>,
+    pub pedestrians: Vec<PedestrianConfig>,
 }
 
 #[derive(Debug, Default, Deserialize)]
 pub struct WallConfig {
-    pub vertice: Vec<Vec2>,
+    pub polygon: Vec<Vec2>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+pub struct WaypointConfig {
+    pub label: Option<String>,
+    pub polygon: Vec<Vec2>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+pub struct PedestrianConfig {
+    pub origin: usize,
+    pub destination: usize,
+    pub waypoints: Option<Vec<usize>>,
 }
