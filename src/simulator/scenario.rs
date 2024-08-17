@@ -7,7 +7,7 @@ use crate::Vec2;
 #[derive(Debug, Default, Deserialize)]
 pub struct Scenario {
     pub walls: Vec<WallConfig>,
-    pub waypoints: FxHashMap<usize, WallConfig>,
+    pub waypoints: FxHashMap<String, WallConfig>,
     pub pedestrians: Vec<PedestrianConfig>,
 }
 
