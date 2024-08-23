@@ -1,3 +1,4 @@
+mod grid;
 pub mod scenario;
 
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};

@@ -9,7 +9,6 @@ use std::{
 };
 
 use clap::Parser;
-use nalgebra::{Vector2, Vector3};
 use once_cell::sync::Lazy;
 
 use crate::{
@@ -20,12 +19,12 @@ use crate::{
 static SIMULATOR: Lazy<RwLock<Simulator>> = Lazy::new(|| RwLock::new(Simulator::with_random()));
 
 fn main() -> anyhow::Result<()> {
-    let args = Args::parse();
+    // let scenario = fs::read_to_string(&args.scenario)?;
+    // let _scenario: Scenario = toml::from_str(&scenario)?;
 
-    let scenario = fs::read_to_string(&args.scenario)?;
-    let _scenario: Scenario = toml::from_str(&scenario)?;
+    let config = Config::default();
 
-    let min_interval = Duration::from_secs_f32(0.001 * args.delta_time / args.playback_speed);
+    let min_interval = Duration::from_secs_f32(config.delta_time / config.playback_speed);
 
     thread::spawn(move || loop {
         let start = Instant::now();
@@ -62,17 +61,18 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[derive(Parser, Debug)]
-struct Args {
-    /// Scenario file
-    #[arg(default_value = "scenarios/default.toml")]
-    scenario: String,
-
-    /// Delta time (in milliseconds)
-    #[arg(short, long, default_value_t = 100.0)]
+pub struct Config {
+    /// Delta time (in seconds)
     delta_time: f32,
-
-    /// Max playback speed (default: 10x)
-    #[arg(short, long, default_value_t = 1.0)]
+    /// Max playback speed (1x)
     playback_speed: f32,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Config {
+            delta_time: 0.1,
+            playback_speed: 1.0,
+        }
+    }
 }
