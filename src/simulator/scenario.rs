@@ -1,30 +1,46 @@
-use rustc_hash::FxHashMap;
+use glam::Vec2;
 use serde::Deserialize;
 
-use glam::Vec2;
-
 /// Scenario data
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Clone, Deserialize)]
 pub struct Scenario {
-    pub walls: Vec<WallConfig>,
-    pub waypoints: FxHashMap<String, WallConfig>,
+    pub field: FieldConfig,
+    pub waypoints: Vec<WaypointConfig>,
+    pub obstacles: Vec<ObstacleConfig>,
     pub pedestrians: Vec<PedestrianConfig>,
 }
 
-#[derive(Debug, Default, Deserialize)]
-pub struct WallConfig {
-    pub polygon: Vec<Vec2>,
+#[derive(Debug, Default, Clone, Deserialize)]
+pub struct FieldConfig {
+    pub size: Vec2,
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Clone, Deserialize)]
+pub struct ObstacleConfig {
+    pub line: [Vec2; 2],
+}
+
+#[derive(Debug, Default, Clone, Deserialize)]
 pub struct WaypointConfig {
-    pub label: Option<String>,
-    pub polygon: Vec<Vec2>,
+    pub line: [Vec2; 2],
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Clone, Deserialize)]
 pub struct PedestrianConfig {
     pub origin: usize,
     pub destination: usize,
-    pub waypoints: Option<Vec<usize>>,
+    pub spawn: PedestrianSpawnConfig,
+}
+
+#[derive(Debug, Default, Clone, Deserialize)]
+pub struct PedestrianSpawnConfig {
+    pub kind: PedestrianSpawnKind,
+    pub frequency: f64,
+}
+
+#[derive(Debug, Default, Clone, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PedestrianSpawnKind {
+    #[default]
+    Periodic,
 }

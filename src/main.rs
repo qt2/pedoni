@@ -8,7 +8,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-use clap::Parser;
 use once_cell::sync::Lazy;
 
 use crate::{
@@ -16,15 +15,20 @@ use crate::{
     simulator::{scenario::Scenario, Simulator},
 };
 
-static SIMULATOR: Lazy<RwLock<Simulator>> = Lazy::new(|| RwLock::new(Simulator::with_random()));
+static SIMULATOR: Lazy<RwLock<Simulator>> =
+    Lazy::new(|| RwLock::new(Simulator::with_scenario(Scenario::default())));
 
 fn main() -> anyhow::Result<()> {
-    // let scenario = fs::read_to_string(&args.scenario)?;
-    // let _scenario: Scenario = toml::from_str(&scenario)?;
-
     let config = Config::default();
-
     let min_interval = Duration::from_secs_f32(config.delta_time / config.playback_speed);
+
+    let scenario = fs::read_to_string("scenarios/default.toml")?;
+    let scenario: Scenario = toml::from_str(&scenario)?;
+
+    {
+        let mut simulator = SIMULATOR.write().unwrap();
+        *simulator = Simulator::with_scenario(scenario);
+    }
 
     thread::spawn(move || loop {
         let start = Instant::now();

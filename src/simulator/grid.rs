@@ -2,8 +2,9 @@ use std::fmt::Debug;
 
 use glam::DVec2;
 
+#[derive(Clone)]
 pub struct Grid {
-    cells: Vec<u8>,
+    cells: Vec<f32>,
     row: i32,
     column: i32,
     unit: f64,
@@ -18,10 +19,10 @@ impl Debug for Grid {
 }
 
 impl Grid {
-    pub fn new(size: DVec2, unit: f64) -> Self {
+    pub fn new(size: DVec2, unit: f64, value: f32) -> Self {
         let row = (size.x / unit).ceil() as i32;
         let column = (size.y / unit).ceil() as i32;
-        let cells = vec![0; (row * column) as usize];
+        let cells = vec![value; (row * column) as usize];
 
         Grid {
             cells,
@@ -37,7 +38,7 @@ impl Grid {
         (i, j)
     }
 
-    pub fn stroke_line(&mut self, mut a: DVec2, mut b: DVec2, value: u8) -> Vec<(i32, i32)> {
+    pub fn stroke_line(&mut self, mut a: DVec2, mut b: DVec2, value: f32) -> Vec<(i32, i32)> {
         let mut stroked = Vec::new();
 
         if a.y > b.y {
@@ -93,33 +94,33 @@ mod tests {
 
     #[test]
     fn test_point_to_index() {
-        let grid = Grid::new(dvec2(5.0, 5.0), 1.0);
+        let grid = Grid::new(dvec2(5.0, 5.0), 1.0, 0.0);
         assert_eq!(grid.point_to_index(dvec2(0.0, 0.0)), (0, 0));
         assert_eq!(grid.point_to_index(dvec2(4.9, 4.9)), (4, 4));
         assert_eq!(grid.point_to_index(dvec2(2.0, 3.7)), (2, 3));
 
-        let grid = Grid::new(dvec2(5.0, 6.0), 0.5);
+        let grid = Grid::new(dvec2(5.0, 6.0), 0.5, 0.0);
         assert_eq!(grid.point_to_index(dvec2(2.0, 3.7)), (4, 7));
     }
 
     #[test]
     fn test_stroke_line() {
-        let mut grid = Grid::new(dvec2(5.0, 5.0), 1.0);
-        grid.stroke_line(dvec2(0.5, 3.5), dvec2(2.5, 2.7), 1);
+        let mut grid = Grid::new(dvec2(5.0, 5.0), 1.0, 0.0);
+        grid.stroke_line(dvec2(0.5, 3.5), dvec2(2.5, 2.7), 1.0);
 
         let cells = grid.cells;
-        assert_eq!(cells[2 * 5 + 0], 0);
-        assert_eq!(cells[2 * 5 + 1], 1);
-        assert_eq!(cells[2 * 5 + 2], 1);
+        assert_eq!(cells[2 * 5 + 0], 0.0);
+        assert_eq!(cells[2 * 5 + 1], 1.0);
+        assert_eq!(cells[2 * 5 + 2], 1.0);
 
-        let mut grid = Grid::new(dvec2(1.5, 2.0), 0.5);
-        grid.stroke_line(dvec2(1.5, 0.5) * 0.5, dvec2(0.5, 3.5) * 0.5, 2);
+        let mut grid = Grid::new(dvec2(1.5, 2.0), 0.5, 0.0);
+        grid.stroke_line(dvec2(1.5, 0.5) * 0.5, dvec2(0.5, 3.5) * 0.5, 2.0);
         println!("{grid:?}");
 
         let cells = grid.cells;
-        assert_eq!(cells[1 * 3 + 0], 0);
-        assert_eq!(cells[1 * 3 + 1], 2);
-        assert_eq!(cells[2 * 3 + 0], 2);
-        assert_eq!(cells[2 * 3 + 1], 0);
+        assert_eq!(cells[1 * 3 + 0], 0.0);
+        assert_eq!(cells[1 * 3 + 1], 2.0);
+        assert_eq!(cells[2 * 3 + 0], 2.0);
+        assert_eq!(cells[2 * 3 + 1], 0.0);
     }
 }

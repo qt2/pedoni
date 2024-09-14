@@ -1,6 +1,7 @@
 mod grid;
 pub mod scenario;
 
+use grid::Grid;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
 
 use self::scenario::Scenario;
@@ -14,42 +15,24 @@ const INV_TAU_A: f32 = 1.0 / TAU_A;
 #[derive(Debug, Default)]
 pub struct Simulator {
     pub scenario: Scenario,
-    pub walls: Vec<Wall>,
+    pub potential_grids: Vec<Grid>,
     pub pedestrians: Vec<Pedestrian>,
 }
 
 impl Simulator {
     /// Create new simulator instance with scenario
     pub fn with_scenario(scenario: Scenario) -> Self {
-        let walls = scenario
-            .walls
-            .iter()
-            .flat_map(|c| {
-                c.polygon.windows(2).map(|polygon| Wall {
-                    polygon: polygon.try_into().unwrap(),
-                })
-            })
-            .collect();
+        // let mut cost_obs = Grid::new(scenario.field.size, 0.5, 1.0);
+        // for obs in &scenario.obstacles {
+        //     cost_obs.stroke_line(obs.line[0], obs.line[1], 1024.0);
+        // }
+
+        // let potential_grids = scenario.waypoints.iter().map(|wp| potential_obs.clone().)
 
         Simulator {
             scenario,
-            walls,
+            potential_grids: vec![],
             pedestrians: vec![],
-        }
-    }
-
-    pub fn with_random() -> Self {
-        let pedestrians = (0..100)
-            .map(|_| Pedestrian {
-                pos: Vec2::new(fastrand::f32(), fastrand::f32()) * 25.,
-                destination: Vec2::new(fastrand::f32(), fastrand::f32()) * 25.,
-                ..Default::default()
-            })
-            .collect();
-
-        Simulator {
-            pedestrians,
-            ..Default::default()
         }
     }
 
@@ -107,12 +90,6 @@ impl Simulator {
                 a.pos += a.vel * DELTA_T;
             });
     }
-}
-
-/// Wall instance
-#[derive(Debug)]
-pub struct Wall {
-    pub polygon: [Vec2; 2],
 }
 
 /// Pedestrian instance

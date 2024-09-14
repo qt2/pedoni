@@ -1,21 +1,15 @@
-use eframe::egui::{self, vec2, Color32, Vec2};
+mod callback;
+pub mod camera;
+pub mod fill;
+
+use callback::RenderCallback;
+use camera::Camera;
+use eframe::{
+    egui::{self, vec2, Color32, Vec2},
+    wgpu,
+};
 
 use crate::SIMULATOR;
-
-#[derive(Debug)]
-pub struct Camera {
-    pub position: Vec2,
-    pub scale: f32,
-}
-
-impl Default for Camera {
-    fn default() -> Self {
-        Camera {
-            position: Vec2::ZERO,
-            scale: 16.0,
-        }
-    }
-}
 
 pub struct Renderer {
     camera: Camera,
@@ -60,7 +54,7 @@ impl Renderer {
     pub fn draw_canvas(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
         let size = ui.available_size();
         let (rect, response) = ui.allocate_exact_size(size, egui::Sense::drag());
-        ui.set_clip_rect(rect);
+        // ui.set_clip_rect(rect);
 
         let camera = &mut self.camera;
 
@@ -73,16 +67,43 @@ impl Renderer {
 
         let simulator = SIMULATOR.read().unwrap();
 
-        simulator.pedestrians.iter().for_each(|p| {
-            let pos = camera.scale * (vec2(p.pos.x, p.pos.y) - camera.position);
-            ui.painter()
-                .circle_filled(pos.to_pos2(), 0.125 * camera.scale, Color32::BLUE);
-        });
+        // simulator.pedestrians.iter().for_each(|p| {
+        //     let pos = camera.scale * (vec2(p.pos.x, p.pos.y) - camera.position);
+        //     ui.painter()
+        //         .circle_filled(pos.to_pos2(), 0.125 * camera.scale, Color32::BLUE);
+        // });
 
-        simulator.pedestrians.iter().for_each(|p| {
-            let pos = camera.scale * (vec2(p.pos.x, p.pos.y) - camera.position) * 2.0;
-            ui.painter()
-                .circle_filled(pos.to_pos2(), 0.125 * camera.scale, Color32::RED);
-        });
+        // simulator.pedestrians.iter().for_each(|p| {
+        //     let pos = camera.scale * (vec2(p.pos.x, p.pos.y) - camera.position) * 2.0;
+        //     ui.painter()
+        //         .circle_filled(pos.to_pos2(), 0.125 * camera.scale, Color32::RED);
+        // });
+
+        let instances: Vec<_> = {
+            let simulator = SIMULATOR.read().unwrap();
+            simulator
+                .pedestrians
+                .iter()
+                .map(|p| fill::Instance {
+                    position: p.pos.into(),
+                    scale: 1.0,
+                    // rect: [0.0, 0.0, 0.125, 0.125],
+                    // color: 0xffff,
+                })
+                .collect()
+        };
+
+        ui.painter().add(egui_wgpu::Callback::new_paint_callback(
+            rect,
+            RenderCallback {
+                camera: self.camera.clone(),
+                instances,
+            },
+        ));
     }
+}
+
+pub struct PipelineSet {
+    pub pipeline_layout: wgpu::PipelineLayout,
+    pub pipeline: wgpu::RenderPipeline,
 }
