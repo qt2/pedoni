@@ -2,12 +2,9 @@ mod callback;
 pub mod camera;
 pub mod fill;
 
-use callback::RenderCallback;
+use callback::{DrawCommand, RenderCallback, RenderResources};
 use camera::Camera;
-use eframe::{
-    egui::{self, vec2, Color32, Vec2},
-    wgpu,
-};
+use eframe::{egui, wgpu};
 
 use crate::SIMULATOR;
 
@@ -45,7 +42,12 @@ impl eframe::App for Renderer {
 }
 
 impl Renderer {
-    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        let render_state = cc.wgpu_render_state.as_ref().unwrap();
+        let render_resources = RenderResources::new(render_state);
+        let resoureces = &mut render_state.renderer.write().callback_resources;
+        resoureces.insert(render_resources);
+
         Renderer {
             camera: Camera::default(),
         }
@@ -57,6 +59,7 @@ impl Renderer {
         // ui.set_clip_rect(rect);
 
         let camera = &mut self.camera;
+        camera.size = glam::vec2(size.x, size.y);
 
         let delta_wheel_y = ctx.input(|i| i.smooth_scroll_delta).y;
         camera.scale *= 2.0_f32.powf(delta_wheel_y * 0.01);
@@ -79,25 +82,37 @@ impl Renderer {
         //         .circle_filled(pos.to_pos2(), 0.125 * camera.scale, Color32::RED);
         // });
 
-        let instances: Vec<_> = {
-            let simulator = SIMULATOR.read().unwrap();
-            simulator
-                .pedestrians
-                .iter()
-                .map(|p| fill::Instance {
-                    position: p.pos.into(),
-                    scale: 1.0,
-                    // rect: [0.0, 0.0, 0.125, 0.125],
-                    // color: 0xffff,
-                })
-                .collect()
-        };
+        // let instances: Vec<_> = {
+        //     let simulator = SIMULATOR.read().unwrap();
+        //     simulator
+        //         .pedestrians
+        //         .iter()
+        //         .map(|p| fill::Instance {
+        //             position: p.pos.into(),
+        //             scale: 1.0,
+        //             // rect: [0.0, 0.0, 0.125, 0.125],
+        //             // color: 0xffff,
+        //         })
+        //         .collect()
+        // };
+
+        let instances = (0..3)
+            .map(|i| fill::Instance {
+                position: glam::vec2(i as f32 * 100.0, 0.0),
+                scale: 24.0,
+                // rect: [0.0, 0.0, 0.125, 0.125],
+                // color: 0xffff,
+            })
+            .collect();
 
         ui.painter().add(egui_wgpu::Callback::new_paint_callback(
             rect,
             RenderCallback {
                 camera: self.camera.clone(),
-                instances,
+                commands: DrawCommand {
+                    mesh_id: 4,
+                    instances,
+                },
             },
         ));
     }

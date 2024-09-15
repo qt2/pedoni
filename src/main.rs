@@ -53,6 +53,7 @@ fn main() -> anyhow::Result<()> {
     let options = eframe::NativeOptions {
         viewport: eframe::egui::ViewportBuilder::default().with_inner_size([960.0, 720.0]),
         renderer: eframe::Renderer::Wgpu,
+        multisampling: 4,
         ..Default::default()
     };
     eframe::run_native(

@@ -26,12 +26,12 @@ struct VertexOutput {
 @vertex
 fn vs_main(
     @builtin(vertex_index) vertex_index: u32,
-    vertex: VertexInput,
-    instance: InstanceInput,
+    vertex: Vertex,
+    instance: Instance,
 ) -> VertexOutput {
     var out: VertexOutput;
-    let position = instance.scale * model.position + instance.position;
-    let relative_position = camera.scale * (position - camera.position) / camera.rect;
+    let position = instance.scale * vertex.position + instance.position;
+    let relative_position = camera.scale * (position - camera.position) / camera.size;
     out.position = vec4<f32>(relative_position, 0.0, 1.0);
     // out.color = instance.color;
     // out.uv = instance.rect.xy + instance.rect.zw * model.uv;
@@ -40,7 +40,7 @@ fn vs_main(
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    let color = unpack4x8unorm(in.color);
+    // let color = unpack4x8unorm(in.color);
     // return textureSample(t_diffuse, s_diffuse, in.uv);
     return vec4<f32>(1.0, 1.0, 1.0, 1.0);
 }

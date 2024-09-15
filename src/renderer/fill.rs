@@ -41,9 +41,9 @@ impl Instance {
     }
 }
 
-pub fn setup_stroke_pipeline(
+pub fn setup_fill_pipeline(
     device: &wgpu::Device,
-    config: &wgpu::SurfaceConfiguration,
+    target_format: wgpu::TextureFormat,
     camera_bind_group_layout: &wgpu::BindGroupLayout,
 ) -> PipelineSet {
     let shader = device.create_shader_module(wgpu::include_wgsl!("shaders/fill.wgsl"));
@@ -53,7 +53,7 @@ pub fn setup_stroke_pipeline(
         ..Default::default()
     });
     let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: None,
+        label: Some("fill_pipeline"),
         layout: Some(&pipeline_layout),
         vertex: wgpu::VertexState {
             module: &shader,
@@ -66,7 +66,7 @@ pub fn setup_stroke_pipeline(
             entry_point: "fs_main",
             // compilation_options: wgpu::PipelineCompilationOptions::default(),
             targets: &[Some(wgpu::ColorTargetState {
-                format: config.format,
+                format: target_format,
                 blend: Some(wgpu::BlendState::ALPHA_BLENDING),
                 write_mask: wgpu::ColorWrites::ALL,
             })],
