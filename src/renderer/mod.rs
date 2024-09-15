@@ -101,7 +101,7 @@ impl Renderer {
                 position: glam::vec2(i as f32 * 100.0, 0.0),
                 scale: 24.0,
                 // rect: [0.0, 0.0, 0.125, 0.125],
-                // color: 0xffff,
+                color: [(i as u8 * 64), 255, 255, 255],
             })
             .collect();
 

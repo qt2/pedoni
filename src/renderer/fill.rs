@@ -26,11 +26,12 @@ impl Vertex {
 pub struct Instance {
     pub position: Vec2,
     pub scale: f32,
+    pub color: [u8; 4],
 }
 
 impl Instance {
-    const ATTRIBS: [wgpu::VertexAttribute; 2] =
-        wgpu::vertex_attr_array![5 => Float32x2, 6 => Float32];
+    const ATTRIBS: [wgpu::VertexAttribute; 3] =
+        wgpu::vertex_attr_array![5 => Float32x2, 6 => Float32, 7 => Unorm8x4];
 
     pub fn desc() -> wgpu::VertexBufferLayout<'static> {
         wgpu::VertexBufferLayout {
