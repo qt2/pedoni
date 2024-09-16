@@ -3,7 +3,7 @@ pub mod camera;
 pub mod fill;
 
 use callback::{DrawCommand, RenderCallback, RenderResources};
-use camera::Camera;
+use camera::{Camera, View};
 use eframe::{egui, wgpu};
 
 use crate::SIMULATOR;
@@ -108,7 +108,7 @@ impl Renderer {
         ui.painter().add(egui_wgpu::Callback::new_paint_callback(
             rect,
             RenderCallback {
-                camera: self.camera.clone(),
+                view: View::from(&self.camera),
                 commands: DrawCommand {
                     mesh_id: 4,
                     instances,

@@ -1,11 +1,19 @@
-struct Camera {
-    position: vec2<f32>,
-    size: vec2<f32>,
-    scale: f32,    
+// struct Camera {
+//     position: vec2<f32>,
+//     size: vec2<f32>,
+//     scale: f32,    
+// }
+
+// @group(0) @binding(0)
+// var<uniform> camera: Camera;
+
+struct View {
+    matrix2: mat2x2<f32>,
+    translation: vec2<f32>,
 }
 
 @group(0) @binding(0)
-var<uniform> camera: Camera;
+var<uniform> view: View;
 
 struct Vertex {
     @location(0) position: vec2<f32>,    
@@ -31,7 +39,8 @@ fn vs_main(
 ) -> VertexOutput {
     var out: VertexOutput;
     let position = instance.scale * vertex.position + instance.position;
-    let relative_position = camera.scale * (position - camera.position) / camera.size;
+    // let relative_position = camera.scale * (position - camera.position) / camera.size;
+    let relative_position = view.matrix2 * position + view.translation;
     out.position = vec4<f32>(relative_position, 0.0, 1.0);
     out.color = instance.color;
     // out.uv = instance.rect.xy + instance.rect.zw * model.uv;

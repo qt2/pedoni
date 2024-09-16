@@ -7,7 +7,10 @@ use rustc_hash::FxHashMap;
 
 use crate::renderer::fill::{Instance, Vertex};
 
-use super::{camera::Camera, fill, PipelineSet};
+use super::{
+    camera::{Camera, View},
+    fill, PipelineSet,
+};
 
 pub struct MeshRegistry {
     mapping: FxHashMap<u64, (Range<u64>, Range<u64>)>,
@@ -107,9 +110,11 @@ impl RenderResources {
         } = &render_state;
 
         let camera = Camera::default();
+        let view = View::from(&camera);
+
         let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("camera_buffer"),
-            contents: bytemuck::cast_slice(&[camera]),
+            contents: bytemuck::cast_slice(&[view]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
         let camera_bind_group_layout =
@@ -178,7 +183,7 @@ impl RenderResources {
 }
 
 pub struct RenderCallback {
-    pub camera: Camera,
+    pub view: View,
     pub commands: DrawCommand,
 }
 
@@ -196,7 +201,7 @@ impl egui_wgpu::CallbackTrait for RenderCallback {
         queue.write_buffer(
             &resources.camera_buffer,
             0,
-            bytemuck::cast_slice(&[self.camera]),
+            bytemuck::cast_slice(&[self.view]),
         );
         queue.write_buffer(
             &resources.instance_buffer,
