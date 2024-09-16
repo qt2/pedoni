@@ -1,12 +1,3 @@
-// struct Camera {
-//     position: vec2<f32>,
-//     size: vec2<f32>,
-//     scale: f32,    
-// }
-
-// @group(0) @binding(0)
-// var<uniform> camera: Camera;
-
 struct View {
     matrix2: mat2x2<f32>,
     translation: vec2<f32>,
@@ -21,8 +12,7 @@ struct Vertex {
 
 struct Instance {
     @location(5) position: vec2<f32>,
-    @location(6) scale: f32,
-    // @location(6) rect: vec4<f32>,
+    @location(6) scale: f32,    
     @location(7) color: vec4<f32>,
 }
 
@@ -38,20 +28,16 @@ fn vs_main(
     instance: Instance,
 ) -> VertexOutput {
     var out: VertexOutput;
-    let position = instance.scale * vertex.position + instance.position;
-    // let relative_position = camera.scale * (position - camera.position) / camera.size;
+    let position = instance.scale * vertex.position + instance.position;    
     let relative_position = view.matrix2 * position + view.translation;
     out.position = vec4<f32>(relative_position, 0.0, 1.0);
     out.color = instance.color;
-    // out.uv = instance.rect.xy + instance.rect.zw * model.uv;
+    
     return out;
 }
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    // let color = unpack4x8unorm(in.color);
-    // return textureSample(t_diffuse, s_diffuse, in.uv);
-    // return vec4<f32>(1.0, 1.0, 1.0, 1.0);
     return in.color;
 }
 

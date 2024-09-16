@@ -56,7 +56,6 @@ impl Renderer {
     pub fn draw_canvas(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
         let size = ui.available_size();
         let (rect, response) = ui.allocate_exact_size(size, egui::Sense::drag());
-        // ui.set_clip_rect(rect);
 
         let camera = &mut self.camera;
         camera.size = glam::vec2(size.x, size.y);
@@ -69,32 +68,6 @@ impl Renderer {
         camera.position.y += delta_drag.y;
 
         let simulator = SIMULATOR.read().unwrap();
-
-        // simulator.pedestrians.iter().for_each(|p| {
-        //     let pos = camera.scale * (vec2(p.pos.x, p.pos.y) - camera.position);
-        //     ui.painter()
-        //         .circle_filled(pos.to_pos2(), 0.125 * camera.scale, Color32::BLUE);
-        // });
-
-        // simulator.pedestrians.iter().for_each(|p| {
-        //     let pos = camera.scale * (vec2(p.pos.x, p.pos.y) - camera.position) * 2.0;
-        //     ui.painter()
-        //         .circle_filled(pos.to_pos2(), 0.125 * camera.scale, Color32::RED);
-        // });
-
-        // let instances: Vec<_> = {
-        //     let simulator = SIMULATOR.read().unwrap();
-        //     simulator
-        //         .pedestrians
-        //         .iter()
-        //         .map(|p| fill::Instance {
-        //             position: p.pos.into(),
-        //             scale: 1.0,
-        //             // rect: [0.0, 0.0, 0.125, 0.125],
-        //             // color: 0xffff,
-        //         })
-        //         .collect()
-        // };
 
         let instances = (0..3)
             .map(|i| fill::Instance {
