@@ -4,15 +4,33 @@ use geo::Line;
 use geo_rasterize::BinaryBuilder;
 use ndarray::{s, Array2};
 use ordered_float::NotNan;
-use thin_vec::{thin_vec, ThinVec};
+use thin_vec::ThinVec;
 
-use super::scenario::Scenario;
+use super::scenario::{ObstacleConfig, Scenario, WaypointConfig};
 
 pub struct Environment {
+    /// Unit of length (in meters)
     unit: f32,
+    /// Shape of 2D grid (y, x)
     shape: (usize, usize),
-    obstacles: Array2<bool>,
+    /// Boolean grid which holds obstacle existence
+    obstacle_existence: Array2<bool>,
+    /// Vector grid indicating which obstacles each cell overlaps
     obstacle_map: Array2<ThinVec<u32>>,
+    /// Potential against each waypoint
+    potentials: Vec<Array2<f32>>,
+}
+
+impl Default for Environment {
+    fn default() -> Self {
+        Environment {
+            unit: 0.5,
+            shape: (0, 0),
+            obstacle_existence: Default::default(),
+            obstacle_map: Default::default(),
+            potentials: Vec::default(),
+        }
+    }
 }
 
 impl Environment {
@@ -20,43 +38,69 @@ impl Environment {
         let unit = 0.5;
         let size = (scenario.field.size / unit).ceil().as_ivec2();
         let shape = (size.y as usize, size.x as usize);
-        let mut obstacles = Array2::from_elem(shape, false);
-        let mut obstacle_map = Array2::from_elem(shape, thin_vec![]);
-
-        for (i, obstacle) in scenario.obstacles.iter().enumerate() {
-            let line = obstacle.line;
-            let shape = Line::from(line.map(|v| {
-                let v = v / unit;
-                (v.x, v.y)
-            }));
-
-            let mut rasterizer = BinaryBuilder::new()
-                .width(size.x as usize)
-                .height(size.y as usize)
-                .build()
-                .unwrap();
-            rasterizer.rasterize(&shape).unwrap();
-            let grid = rasterizer.finish();
-
-            obstacles
-                .slice_mut(s![.., ..])
-                .zip_mut_with(&grid, |a, b| *a |= b);
-
-            obstacle_map.zip_mut_with(&grid, |map, exist| {
-                if *exist {
-                    map.push(i as u32)
-                }
-            });
-        }
-
-        Environment {
+        let mut env = Environment {
             unit,
             shape,
-            obstacles,
-            obstacle_map,
+            ..Default::default()
+        };
+
+        for (i, obstacle) in scenario.obstacles.iter().enumerate() {
+            env.add_obstacle(i, obstacle);
         }
+
+        for (i, waypoint) in scenario.waypoints.iter().enumerate() {
+            env.add_waypoint(i, waypoint);
+        }
+
+        env
     }
 
+    fn add_obstacle(&mut self, index: usize, obstacle: &ObstacleConfig) {
+        let line = obstacle.line;
+        let shape = Line::from(line.map(|v| {
+            let v = v / self.unit;
+            (v.x, v.y)
+        }));
+
+        let mut rasterizer = BinaryBuilder::new()
+            .width(self.shape.1)
+            .height(self.shape.0)
+            .build()
+            .unwrap();
+        rasterizer.rasterize(&shape).unwrap();
+        let grid = rasterizer.finish();
+
+        self.obstacle_existence
+            .slice_mut(s![.., ..])
+            .zip_mut_with(&grid, |a, b| *a |= b);
+
+        self.obstacle_map.zip_mut_with(&grid, |map, exist| {
+            if *exist {
+                map.push(index as u32)
+            }
+        });
+    }
+
+    fn add_waypoint(&mut self, _index: usize, waypoint: &WaypointConfig) {
+        let line = waypoint.line;
+        let shape = Line::from(line.map(|v| {
+            let v = v / self.unit;
+            (v.x, v.y)
+        }));
+
+        let mut rasterizer = BinaryBuilder::new()
+            .width(self.shape.1)
+            .height(self.shape.0)
+            .build()
+            .unwrap();
+        rasterizer.rasterize(&shape).unwrap();
+        let grid = rasterizer.finish();
+
+        let potential = self.calc_potential(grid);
+        self.potentials.push(potential);
+    }
+
+    /// Calculate potential against a waypoint using Sethian's [fast marching method](https://en.wikipedia.org/wiki/Fast_marching_method).    
     fn calc_potential(&self, target_map: Array2<bool>) -> Array2<f32> {
         use Status::*;
         type Float = Reverse<NotNan<f32>>;
@@ -98,7 +142,11 @@ impl Environment {
 
                         if status[(y, x)] != Accepted {
                             status[(y, x)] = Considered;
-                            let v = u + if self.obstacles[(y, x)] { 1024.0 } else { 1.0 };
+                            let v = u + if self.obstacle_existence[(y, x)] {
+                                1024.0
+                            } else {
+                                1.0
+                            };
 
                             if potential[(y, x)] > v {
                                 potential[(y, x)] = v;
@@ -162,7 +210,9 @@ mod tests {
 
         println!(
             "{:#?}",
-            environment.obstacles.map(|v| if *v { 1 } else { 0 })
+            environment
+                .obstacle_existence
+                .map(|v| if *v { 1 } else { 0 })
         );
 
         let mut target_map = Array2::from_elem(environment.shape, false);
