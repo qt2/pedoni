@@ -57,7 +57,7 @@ impl Environment {
         }
     }
 
-    fn calc_potential(&mut self, target_map: Array2<bool>) -> Array2<f32> {
+    fn calc_potential(&self, target_map: Array2<bool>) -> Array2<f32> {
         use Status::*;
         type Float = Reverse<NotNan<f32>>;
 
@@ -87,11 +87,23 @@ impl Environment {
 
         while let Some((u, (j, i))) = queue.pop() {
             let u = u.0.into_inner();
-            for (dj, di) in [(-1, -1), (-1, 1), (1, -1), (1, 1)] {
+            status[(j, i)] = Accepted;
+
+            for (dj, di) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
                 match (j.checked_add_signed(dj), i.checked_add_signed(di)) {
                     (Some(y), Some(x)) => {
+                        if status.get((y, x)).is_none() {
+                            continue;
+                        }
+
                         if status[(y, x)] != Accepted {
                             status[(y, x)] = Considered;
+                            let v = u + if self.obstacles[(y, x)] { 1024.0 } else { 1.0 };
+
+                            if potential[(y, x)] > v {
+                                potential[(y, x)] = v;
+                                queue.push((float(v), (y, x)));
+                            }
                         }
                     }
                     _ => {}
@@ -152,5 +164,12 @@ mod tests {
             "{:#?}",
             environment.obstacles.map(|v| if *v { 1 } else { 0 })
         );
+
+        let mut target_map = Array2::from_elem(environment.shape, false);
+        target_map[(10, 5)] = true;
+        // target_map[(10, 6)] = true;
+        let potential = environment.calc_potential(target_map);
+
+        println!("{:#?}", potential.map(|v| *v as i32));
     }
 }
