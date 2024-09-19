@@ -1,4 +1,6 @@
 mod grid;
+pub mod models;
+mod navigation;
 pub mod scenario;
 
 use grid::Grid;
