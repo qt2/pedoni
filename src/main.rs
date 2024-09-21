@@ -30,17 +30,24 @@ fn main() -> anyhow::Result<()> {
         *simulator = Simulator::with_scenario(scenario);
     }
 
+    println!("done");
+
     thread::spawn(move || loop {
         let start = Instant::now();
 
-        let accels = {
+        {
+            let mut simulator = SIMULATOR.write().unwrap();
+            simulator.spawn_pedestrians();
+        }
+
+        let next_state = {
             let simulator = SIMULATOR.read().unwrap();
-            simulator.calc_acceleration()
+            simulator.calc_next_state()
         };
 
         {
             let mut simulator = SIMULATOR.write().unwrap();
-            simulator.tick(accels);
+            simulator.apply_next_state(next_state);
         }
 
         let calc_time = Instant::now() - start;

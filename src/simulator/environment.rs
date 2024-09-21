@@ -2,6 +2,7 @@ use std::{cmp::Reverse, collections::BinaryHeap};
 
 use geo::Line;
 use geo_rasterize::BinaryBuilder;
+use glam::Vec2;
 use ndarray::{s, Array2};
 use ordered_float::NotNan;
 use thin_vec::ThinVec;
@@ -10,15 +11,15 @@ use super::scenario::{ObstacleConfig, Scenario, WaypointConfig};
 
 pub struct Environment {
     /// Unit of length (in meters)
-    unit: f32,
+    pub unit: f32,
     /// Shape of 2D grid (y, x)
-    shape: (usize, usize),
+    pub shape: (usize, usize),
     /// Boolean grid which holds obstacle existence
-    obstacle_existence: Array2<bool>,
+    pub obstacle_existence: Array2<bool>,
     /// Vector grid indicating which obstacles each cell overlaps
-    obstacle_map: Array2<ThinVec<u32>>,
+    pub obstacle_map: Array2<ThinVec<u32>>,
     /// Potential against each waypoint
-    potentials: Vec<Array2<f32>>,
+    pub potentials: Vec<Array2<f32>>,
 }
 
 impl Default for Environment {
@@ -38,9 +39,14 @@ impl Environment {
         let unit = 0.5;
         let size = (scenario.field.size / unit).ceil().as_ivec2();
         let shape = (size.y as usize, size.x as usize);
+        let obstacle_existence = Array2::from_elem(shape, false);
+        let obstacle_map = Array2::from_elem(shape, ThinVec::new());
+
         let mut env = Environment {
             unit,
             shape,
+            obstacle_existence,
+            obstacle_map,
             ..Default::default()
         };
 
@@ -70,9 +76,7 @@ impl Environment {
         rasterizer.rasterize(&shape).unwrap();
         let grid = rasterizer.finish();
 
-        self.obstacle_existence
-            .slice_mut(s![.., ..])
-            .zip_mut_with(&grid, |a, b| *a |= b);
+        self.obstacle_existence.zip_mut_with(&grid, |a, b| *a |= b);
 
         self.obstacle_map.zip_mut_with(&grid, |map, exist| {
             if *exist {
@@ -161,6 +165,33 @@ impl Environment {
 
         potential
     }
+
+    pub fn get_potential(&self, waypoint_id: usize, position: Vec2) -> f32 {
+        let position = position / self.unit - Vec2::splat(0.5);
+        let base = position.floor();
+        let t = position - base;
+        let b = base.as_ivec2();
+
+        let potential = &self.potentials[waypoint_id];
+        let shape = potential.shape();
+
+        [(0, t.y), (1, 1.0 - t.y)]
+            .iter()
+            .map(|(dy, ty)| {
+                [(0, t.x), (1, 1.0 - t.x)]
+                    .iter()
+                    .map(|(dx, tx)| {
+                        let index = (
+                            (b.y.max(0) as usize + dy).min(shape[0] - 1),
+                            (b.x.max(0) as usize + dx).min(shape[1] - 1),
+                        );
+                        potential[index] * tx
+                    })
+                    .sum::<f32>()
+                    * ty
+            })
+            .sum()
+    }
 }
 
 #[cfg(test)]
@@ -170,7 +201,7 @@ mod tests {
     use glam::vec2;
     use ndarray::Array2;
 
-    use crate::simulator::scenario::{FieldConfig, ObstacleConfig, Scenario};
+    use crate::simulator::scenario::{FieldConfig, ObstacleConfig, Scenario, WaypointConfig};
 
     use super::Environment;
 
@@ -193,33 +224,40 @@ mod tests {
     fn test_parse_scenario() {
         let scenario = Scenario {
             field: FieldConfig {
-                size: vec2(20.0, 10.0),
+                size: vec2(5.0, 5.0),
             },
             obstacles: vec![
                 ObstacleConfig {
-                    line: [vec2(5.0, 4.0), vec2(15.0, 4.0)],
+                    line: [vec2(0.0, 1.5), vec2(4.0, 1.5)],
                 },
                 ObstacleConfig {
-                    line: [vec2(5.0, 6.0), vec2(15.0, 6.0)],
+                    line: [vec2(1.0, 3.5), vec2(5.0, 3.5)],
                 },
             ],
+            waypoints: vec![WaypointConfig {
+                line: [vec2(0.0, 0.0), vec2(0.0, 1.0)],
+            }],
             ..Default::default()
         };
 
         let environment = Environment::from_scenario(&scenario);
 
         println!(
-            "{:#?}",
+            "{:?}",
             environment
                 .obstacle_existence
                 .map(|v| if *v { 1 } else { 0 })
         );
 
-        let mut target_map = Array2::from_elem(environment.shape, false);
-        target_map[(10, 5)] = true;
-        // target_map[(10, 6)] = true;
-        let potential = environment.calc_potential(target_map);
+        println!("{:?}", environment.potentials[0].map(|v| *v as i32));
 
-        println!("{:#?}", potential.map(|v| *v as i32));
+        println!("{:?}", environment.get_potential(0, vec2(-1.5, 2.0)));
+
+        // let mut target_map = Array2::from_elem(environment.shape, false);
+        // target_map[(10, 5)] = true;
+        // // target_map[(10, 6)] = true;
+        // let potential = environment.calc_potential(target_map);
+
+        // println!("{:#?}", potential.map(|v| *v as i32));
     }
 }

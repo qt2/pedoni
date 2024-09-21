@@ -5,6 +5,7 @@ pub mod fill;
 use callback::{DrawCommand, RenderCallback, RenderResources};
 use camera::{Camera, View};
 use eframe::{egui, wgpu};
+use fill::Instance;
 
 use crate::SIMULATOR;
 
@@ -67,25 +68,36 @@ impl Renderer {
         camera.position.x -= delta_drag.x;
         camera.position.y += delta_drag.y;
 
-        let simulator = SIMULATOR.read().unwrap();
+        // let instances = (0..3)
+        //     .map(|i| fill::Instance {
+        //         position: glam::vec2(i as f32 * 100.0, 0.0),
+        //         scale: 24.0,
+        //         // rect: [0.0, 0.0, 0.125, 0.125],
+        //         color: [(i as u8 * 64), 255, 255, 255],
+        //     })
+        //     .collect();
 
-        let instances = (0..3)
-            .map(|i| fill::Instance {
-                position: glam::vec2(i as f32 * 100.0, 0.0),
-                scale: 24.0,
-                // rect: [0.0, 0.0, 0.125, 0.125],
-                color: [(i as u8 * 64), 255, 255, 255],
-            })
-            .collect();
+        let instances = {
+            let simulator = SIMULATOR.read().unwrap();
+            simulator
+                .pedestrians
+                .iter()
+                .map(|ped| Instance {
+                    position: ped.pos,
+                    scale: 1.0,
+                    color: [255; 4],
+                })
+                .collect()
+        };
 
         ui.painter().add(egui_wgpu::Callback::new_paint_callback(
             rect,
             RenderCallback {
                 view: View::from(&self.camera),
-                commands: DrawCommand {
+                commands: vec![DrawCommand {
                     mesh_id: 4,
                     instances,
-                },
+                }],
             },
         ));
     }

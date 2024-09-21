@@ -92,11 +92,52 @@ impl MeshRegistry {
     }
 }
 
+pub struct InstanceBuffer {
+    buffer: wgpu::Buffer,
+    len: u64,
+    segments: Vec<Range<u64>>,
+}
+
+impl InstanceBuffer {
+    pub fn new(device: &wgpu::Device) -> Self {
+        let buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("instance_buffer"),
+            size: 256 * 2048,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
+        InstanceBuffer {
+            buffer,
+            len: 0,
+            segments: Vec::new(),
+        }
+    }
+
+    pub fn clear(&mut self) {
+        self.len = 0;
+        self.segments.clear();
+    }
+
+    pub fn push(&mut self, queue: &wgpu::Queue, instances: &[impl bytemuck::NoUninit]) {
+        let data = bytemuck::cast_slice(instances);
+        let len = self.len;
+        queue.write_buffer(&self.buffer, len, data);
+
+        self.len += data.len() as u64;
+        self.segments.push(len..self.len);
+    }
+
+    pub fn segment(&self, index: usize) -> wgpu::BufferSlice<'_> {
+        self.buffer.slice(self.segments[index].clone())
+    }
+}
+
 pub struct RenderResources {
     fill_pipeline: PipelineSet,
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
-    instance_buffer: wgpu::Buffer,
+    instance_buffer: InstanceBuffer,
     mesh_registry: MeshRegistry,
 }
 
@@ -165,12 +206,7 @@ impl RenderResources {
             &[0, 1, 2, 0, 2, 3],
         );
 
-        let instance_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("fill_instance_buffer"),
-            size: Instance::desc().array_stride * 2048,
-            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
+        let instance_buffer = InstanceBuffer::new(device);
 
         RenderResources {
             fill_pipeline,
@@ -184,7 +220,7 @@ impl RenderResources {
 
 pub struct RenderCallback {
     pub view: View,
-    pub commands: DrawCommand,
+    pub commands: Vec<DrawCommand>,
 }
 
 impl egui_wgpu::CallbackTrait for RenderCallback {
@@ -196,18 +232,22 @@ impl egui_wgpu::CallbackTrait for RenderCallback {
         _egui_encoder: &mut eframe::wgpu::CommandEncoder,
         callback_resources: &mut egui_wgpu::CallbackResources,
     ) -> Vec<eframe::wgpu::CommandBuffer> {
-        let resources: &RenderResources = callback_resources.get().unwrap();
+        let resources: &mut RenderResources = callback_resources.get_mut().unwrap();
 
         queue.write_buffer(
             &resources.camera_buffer,
             0,
             bytemuck::cast_slice(&[self.view]),
         );
-        queue.write_buffer(
-            &resources.instance_buffer,
-            0,
-            bytemuck::cast_slice(&self.commands.instances),
-        );
+
+        resources.instance_buffer.clear();
+
+        for command in &self.commands {
+            if command.instances.is_empty() {
+                continue;
+            }
+            resources.instance_buffer.push(queue, &command.instances);
+        }
 
         Vec::new()
     }
@@ -220,19 +260,26 @@ impl egui_wgpu::CallbackTrait for RenderCallback {
     ) {
         let resources: &RenderResources = callback_resources.get().unwrap();
 
-        let (vertex_range, index_range) =
-            resources.mesh_registry.get(self.commands.mesh_id).unwrap();
-        let indices = 0..index_range.end as u32 / 2;
-
         render_pass.set_pipeline(&resources.fill_pipeline.pipeline);
         render_pass.set_bind_group(0, &resources.camera_bind_group, &[]);
-        render_pass.set_vertex_buffer(0, resources.mesh_registry.vertex_buffer.slice(vertex_range));
-        render_pass.set_vertex_buffer(1, resources.instance_buffer.slice(..));
-        render_pass.set_index_buffer(
-            resources.mesh_registry.index_buffer.slice(index_range),
-            wgpu::IndexFormat::Uint16,
-        );
-        render_pass.draw_indexed(indices, 0, 0..self.commands.instances.len() as _)
+
+        for (i, command) in self.commands.iter().enumerate() {
+            if command.instances.is_empty() {
+                continue;
+            }
+
+            let (vertex_range, index_range) = resources.mesh_registry.get(command.mesh_id).unwrap();
+            let indices = 0..index_range.end as u32 / 2;
+
+            render_pass
+                .set_vertex_buffer(0, resources.mesh_registry.vertex_buffer.slice(vertex_range));
+            render_pass.set_vertex_buffer(1, resources.instance_buffer.segment(i));
+            render_pass.set_index_buffer(
+                resources.mesh_registry.index_buffer.slice(index_range),
+                wgpu::IndexFormat::Uint16,
+            );
+            render_pass.draw_indexed(indices, 0, 0..command.instances.len() as _)
+        }
     }
 }
 
