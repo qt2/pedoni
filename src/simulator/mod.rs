@@ -79,14 +79,17 @@ impl Simulator {
         }
     }
 
-    pub fn calc_next_state(&self) -> Vec<Vec2> {
+    pub fn calc_next_state(&self) -> Vec<(Vec2, bool)> {
         const Q: i32 = 8;
         const R: f32 = 1.0;
 
         self.pedestrians
             .par_iter()
+            .filter(|ped| ped.active)
             .map(|ped| {
-                (0..Q)
+                let active = self.environment.get_potential(ped.destination, ped.pos) > 2.0;
+
+                let position = (0..Q)
                     .map(|k| {
                         let phi = 2.0 * PI / Q as f32 * (k as f32 + fastrand::f32());
                         let x_k = ped.pos + R * vec2(phi.cos(), phi.sin());
@@ -95,16 +98,22 @@ impl Simulator {
                     })
                     .min_by_key(|t| t.0)
                     .unwrap()
-                    .1
+                    .1;
+
+                (position, active)
             })
             .collect()
     }
 
-    pub fn apply_next_state(&mut self, state: Vec<Vec2>) {
+    pub fn apply_next_state(&mut self, state: Vec<(Vec2, bool)>) {
         self.pedestrians
             .iter_mut()
+            .filter(|ped| ped.active)
             .zip(state)
-            .for_each(|(ped, pos)| ped.pos = pos);
+            .for_each(|(ped, (pos, active))| {
+                ped.pos = pos;
+                ped.active = active;
+            });
     }
 
     // pub fn calc_acceleration(&self) -> Vec<Vec2> {
@@ -179,6 +188,7 @@ fn poisson(lambda: f64) -> i32 {
 /// Pedestrian instance
 #[derive(Debug)]
 pub struct Pedestrian {
+    pub active: bool,
     pub pos: Vec2,
     pub vel: Vec2,
     pub vel_prefered: Vec2,
@@ -195,6 +205,7 @@ impl Default for Pedestrian {
         let v0 = fastrand_contrib::f32_normal_approx(1.34, 0.26);
 
         Pedestrian {
+            active: true,
             pos: Vec2::default(),
             vel: Vec2::default(),
             vel_prefered: Vec2::default(),

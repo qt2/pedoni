@@ -78,15 +78,6 @@ impl Renderer {
         camera.position.x -= delta_drag.x;
         camera.position.y += delta_drag.y;
 
-        // let instances = (0..3)
-        //     .map(|i| fill::Instance {
-        //         position: glam::vec2(i as f32 * 100.0, 0.0),
-        //         scale: 24.0,
-        //         // rect: [0.0, 0.0, 0.125, 0.125],
-        //         color: [(i as u8 * 64), 255, 255, 255],
-        //     })
-        //     .collect();
-
         let commands = {
             let simulator = SIMULATOR.read().unwrap();
 
@@ -95,6 +86,7 @@ impl Renderer {
             let instances = simulator
                 .pedestrians
                 .iter()
+                .filter(|ped| ped.active)
                 .map(|ped| Instance::point(ped.pos, COLORS[ped.destination % COLORS.len()]))
                 .collect();
             commands.push(DrawCommand {

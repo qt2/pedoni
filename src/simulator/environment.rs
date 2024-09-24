@@ -181,11 +181,11 @@ impl Environment {
                 [(0, t.x), (1, 1.0 - t.x)]
                     .iter()
                     .map(|(dx, tx)| {
-                        let index = (
-                            (b.y.max(0) as usize + dy).min(shape[0] - 1),
-                            (b.x.max(0) as usize + dx).min(shape[1] - 1),
-                        );
-                        potential[index] * tx
+                        let (x, y) = (b.x + dx, b.y + dy);
+                        if y < 0 || y >= shape[0] as i32 || x < 0 || x >= shape[1] as i32 {
+                            return 1e24;
+                        }
+                        potential[(y as usize, x as usize)] * tx
                     })
                     .sum::<f32>()
                     * ty

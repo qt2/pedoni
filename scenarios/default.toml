@@ -1,17 +1,17 @@
 [field]
-size = [10, 10]
+size = [100, 100]
 
 [[waypoints]]
-line = [[0, 0], [0, 1]]
+line = [[10, 0], [10, 10]]
 
 [[waypoints]]
-line = [[10, 9], [10, 10]]
+line = [[90, 90], [90, 100]]
 
 [[obstacles]]
-line = [[3, 0], [3, 8]]
+line = [[0, 30], [80, 30]]
 
 [[obstacles]]
-line = [[7, 2], [7, 10]]
+line = [[20, 70], [100, 70]]
 
 [[pedestrians]]
 origin = 0

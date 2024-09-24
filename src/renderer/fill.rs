@@ -59,9 +59,9 @@ impl Instance {
         let height = y_axis.length();
         let scale = vec2(width, height);
         let Vec2 { x: ms, y: c } = y_axis / height;
-        // let rotation = Mat2::from_cols_array(&[c, ms, -ms, c]);
+
         let matrix2 =
-            Mat2::from_cols_array(&[c * scale.x, ms * scale.y, -ms * scale.x, c * scale.y]);
+            Mat2::from_cols_array(&[c * scale.x, -ms * scale.x, ms * scale.y, c * scale.y]); // in column major
 
         Instance {
             matrix2,
@@ -102,7 +102,7 @@ pub fn setup_fill_pipeline(
             })],
         }),
         primitive: wgpu::PrimitiveState {
-            topology: wgpu::PrimitiveTopology::TriangleStrip,
+            topology: wgpu::PrimitiveTopology::TriangleList,
             ..Default::default()
         },
         depth_stencil: None,
@@ -117,5 +117,21 @@ pub fn setup_fill_pipeline(
     PipelineSet {
         pipeline_layout,
         pipeline,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use glam::{vec2, Mat2};
+
+    use super::Instance;
+
+    #[test]
+    fn test_line_segments() {
+        let instance =
+            Instance::line_segment([vec2(1.0, 1.0), vec2(5.0, 5.0)], 2.0f32.sqrt(), [255; 4]);
+
+        let p0 = instance.matrix2 * vec2(0.5, 0.5) + instance.translation;
+        dbg!(instance, p0);
     }
 }
