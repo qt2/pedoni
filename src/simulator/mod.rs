@@ -80,7 +80,7 @@ impl Simulator {
     }
 
     pub fn calc_next_state(&self) -> Vec<(Vec2, bool)> {
-        const Q: i32 = 8;
+        const Q: i32 = 16;
         const R: f32 = 1.0;
 
         self.pedestrians
@@ -93,7 +93,10 @@ impl Simulator {
                     .map(|k| {
                         let phi = 2.0 * PI / Q as f32 * (k as f32 + fastrand::f32());
                         let x_k = ped.pos + R * vec2(phi.cos(), phi.sin());
+
                         let p = self.environment.get_potential(ped.destination, x_k);
+                        // let p_obstacle = self.environment
+
                         (NotNan::new(p).unwrap(), x_k)
                     })
                     .min_by_key(|t| t.0)
@@ -103,6 +106,12 @@ impl Simulator {
                 (position, active)
             })
             .collect()
+    }
+
+    fn get_potential(&self, waypoint_id: usize, position: Vec2) -> f32 {
+        let p_field = self.environment.get_potential(waypoint_id, position);
+        let p_obstacles = self.scenario.obstacles.iter().map(|obs| obs.line);
+        todo!()
     }
 
     pub fn apply_next_state(&mut self, state: Vec<(Vec2, bool)>) {
@@ -185,6 +194,20 @@ fn poisson(lambda: f64) -> i32 {
     y
 }
 
+fn distance_from_line(point: Vec2, line: [Vec2; 2]) -> f32 {
+    let a = point - line[0];
+    let b = line[1] - line[0];
+    let b_len = b.length();
+    let dot = a.dot(b);
+
+    if dot >= 0.0 && dot <= b_len {
+        let t = b * dot / b_len;
+        (a - t).length()
+    } else {
+        1e24
+    }
+}
+
 /// Pedestrian instance
 #[derive(Debug)]
 pub struct Pedestrian {
@@ -214,5 +237,20 @@ impl Default for Pedestrian {
             v0,
             vmax: v0 * 1.3,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use assert_float_eq::*;
+    use glam::vec2;
+
+    use super::distance_from_line;
+
+    #[test]
+    fn test_distance_from_line() {
+        let line = [vec2(1.0, 1.0), vec2(4.0, 1.0)];
+
+        assert_float_absolute_eq!(distance_from_line(vec2(2.0, 3.0), line), 2.0);
     }
 }

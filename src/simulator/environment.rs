@@ -36,7 +36,7 @@ impl Default for Environment {
 
 impl Environment {
     pub fn from_scenario(scenario: &Scenario) -> Self {
-        let unit = 0.5;
+        let unit = 0.25;
         let size = (scenario.field.size / unit).ceil().as_ivec2();
         let shape = (size.y as usize, size.x as usize);
         let obstacle_existence = Array2::from_elem(shape, false);
@@ -47,7 +47,7 @@ impl Environment {
             shape,
             obstacle_existence,
             obstacle_map,
-            ..Default::default()
+            potentials: Vec::new(),
         };
 
         for (i, obstacle) in scenario.obstacles.iter().enumerate() {
@@ -147,7 +147,7 @@ impl Environment {
                         if status[(y, x)] != Accepted {
                             status[(y, x)] = Considered;
                             let v = u + if self.obstacle_existence[(y, x)] {
-                                1024.0
+                                4096.0
                             } else {
                                 1.0
                             };
