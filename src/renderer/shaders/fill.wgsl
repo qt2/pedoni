@@ -11,8 +11,8 @@ struct Vertex {
 }
 
 struct Instance {
-    @location(5) position: vec2<f32>,
-    @location(6) scale: f32,    
+    @location(5) matrix2: vec4<f32>,
+    @location(6) translation: vec2<f32>,
     @location(7) color: vec4<f32>,
 }
 
@@ -28,7 +28,8 @@ fn vs_main(
     instance: Instance,
 ) -> VertexOutput {
     var out: VertexOutput;
-    let position = instance.scale * vertex.position + instance.position;    
+    let matrix2 = mat2x2(instance.matrix2[0], instance.matrix2[1], instance.matrix2[2], instance.matrix2[3]);
+    let position = matrix2 * vertex.position + instance.translation;
     let relative_position = view.matrix2 * position + view.translation;
     out.position = vec4<f32>(relative_position, 0.0, 1.0);
     out.color = instance.color;

@@ -2,12 +2,22 @@ mod callback;
 pub mod camera;
 pub mod fill;
 
-use callback::{DrawCommand, RenderCallback, RenderResources};
+pub use callback::{DrawCommand, RenderCallback, RenderResources};
 use camera::{Camera, View};
 use eframe::{egui, wgpu};
 use fill::Instance;
+use glam::Vec2;
 
 use crate::SIMULATOR;
+
+const COLORS: &[[u8; 4]] = &[
+    [255, 0, 0, 255],
+    [0, 0, 255, 255],
+    [0, 255, 0, 255],
+    [255, 0, 255, 255],
+    [255, 255, 0, 255],
+    [0, 255, 255, 255],
+];
 
 pub struct Renderer {
     camera: Camera,
@@ -77,27 +87,29 @@ impl Renderer {
         //     })
         //     .collect();
 
-        let instances = {
+        let commands = {
             let simulator = SIMULATOR.read().unwrap();
-            simulator
+
+            let mut commands = simulator.static_draw_commands.clone();
+
+            let instances = simulator
                 .pedestrians
                 .iter()
-                .map(|ped| Instance {
-                    position: ped.pos,
-                    scale: 1.0,
-                    color: [255; 4],
-                })
-                .collect()
+                .map(|ped| Instance::point(ped.pos, COLORS[ped.destination % COLORS.len()]))
+                .collect();
+            commands.push(DrawCommand {
+                mesh_id: 4,
+                instances,
+            });
+
+            commands
         };
 
         ui.painter().add(egui_wgpu::Callback::new_paint_callback(
             rect,
             RenderCallback {
                 view: View::from(&self.camera),
-                commands: vec![DrawCommand {
-                    mesh_id: 4,
-                    instances,
-                }],
+                commands,
             },
         ));
     }

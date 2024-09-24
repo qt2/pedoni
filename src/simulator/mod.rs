@@ -4,15 +4,12 @@ pub mod scenario;
 
 use std::f32::consts::PI;
 
+use crate::renderer::{fill::Instance, DrawCommand};
 use environment::Environment;
-use ordered_float::NotNan;
-use rayon::iter::{
-    IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
-};
-use scenario::PedestrianConfig;
-
-use self::scenario::Scenario;
 use glam::{vec2, Vec2};
+use ordered_float::NotNan;
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use scenario::Scenario;
 
 const DELTA_T: f32 = 0.1;
 const TAU_A: f32 = 0.5;
@@ -24,6 +21,7 @@ pub struct Simulator {
     pub scenario: Scenario,
     pub environment: Environment,
     pub pedestrians: Vec<Pedestrian>,
+    pub static_draw_commands: Vec<DrawCommand>,
 }
 
 impl Simulator {
@@ -31,10 +29,33 @@ impl Simulator {
     pub fn with_scenario(scenario: Scenario) -> Self {
         let environment = Environment::from_scenario(&scenario);
 
+        let obs_instances = scenario
+            .obstacles
+            .iter()
+            .map(|obstacle| Instance::line_segment(obstacle.line, 1.0, [255, 255, 255, 64]))
+            .collect();
+        let wp_instances = scenario
+            .waypoints
+            .iter()
+            .map(|wp| Instance::line_segment(wp.line, 1.0, [255, 255, 0, 255]))
+            .collect();
+
+        let static_draw_commands = vec![
+            DrawCommand {
+                mesh_id: 4,
+                instances: obs_instances,
+            },
+            DrawCommand {
+                mesh_id: 4,
+                instances: wp_instances,
+            },
+        ];
+
         Simulator {
             scenario,
             environment,
             pedestrians: vec![],
+            static_draw_commands,
         }
     }
 

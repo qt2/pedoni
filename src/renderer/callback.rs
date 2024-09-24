@@ -283,6 +283,7 @@ impl egui_wgpu::CallbackTrait for RenderCallback {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct DrawCommand {
     pub mesh_id: u64,
     pub instances: Vec<Instance>,

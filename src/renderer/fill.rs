@@ -1,5 +1,5 @@
 use eframe::wgpu;
-use glam::Vec2;
+use glam::{vec2, Affine2, Mat2, Vec2};
 
 use super::PipelineSet;
 
@@ -22,22 +22,51 @@ impl Vertex {
 }
 
 #[repr(C)]
-#[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Debug, Clone, Copy, bytemuck::Zeroable)]
 pub struct Instance {
-    pub position: Vec2,
-    pub scale: f32,
+    pub matrix2: Mat2,
+    pub translation: Vec2,
     pub color: [u8; 4],
 }
 
+unsafe impl bytemuck::Pod for Instance {}
+
 impl Instance {
     const ATTRIBS: [wgpu::VertexAttribute; 3] =
-        wgpu::vertex_attr_array![5 => Float32x2, 6 => Float32, 7 => Unorm8x4];
+        wgpu::vertex_attr_array![5 => Float32x4, 6 => Float32x2, 7 => Unorm8x4];
 
     pub fn desc() -> wgpu::VertexBufferLayout<'static> {
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Instance,
             attributes: &Self::ATTRIBS,
+        }
+    }
+}
+
+impl Instance {
+    pub fn point(position: Vec2, color: [u8; 4]) -> Self {
+        Instance {
+            matrix2: Mat2::IDENTITY,
+            translation: position,
+            color,
+        }
+    }
+
+    pub fn line_segment(points: [Vec2; 2], width: f32, color: [u8; 4]) -> Self {
+        let translation = (points[0] + points[1]) / 2.0;
+        let y_axis = points[1] - points[0];
+        let height = y_axis.length();
+        let scale = vec2(width, height);
+        let Vec2 { x: ms, y: c } = y_axis / height;
+        // let rotation = Mat2::from_cols_array(&[c, ms, -ms, c]);
+        let matrix2 =
+            Mat2::from_cols_array(&[c * scale.x, ms * scale.y, -ms * scale.x, c * scale.y]);
+
+        Instance {
+            matrix2,
+            translation,
+            color,
         }
     }
 }
