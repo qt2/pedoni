@@ -94,8 +94,7 @@ impl Simulator {
                         let phi = 2.0 * PI / Q as f32 * (k as f32 + fastrand::f32());
                         let x_k = ped.pos + R * vec2(phi.cos(), phi.sin());
 
-                        let p = self.environment.get_potential(ped.destination, x_k);
-                        // let p_obstacle = self.environment
+                        let p = self.get_potential(ped.destination, x_k);
 
                         (NotNan::new(p).unwrap(), x_k)
                     })
@@ -109,9 +108,35 @@ impl Simulator {
     }
 
     fn get_potential(&self, waypoint_id: usize, position: Vec2) -> f32 {
+        /// Pedestrian torso
+        const G_P: f32 = 0.4;
+        const G_P_HALF: f32 = G_P / 2.0;
+
+        // Parameters on obstacles
+        const MU_O: f32 = 10000.0;
+        const NU_O: f32 = 0.2;
+        const A_O: f32 = 3.0;
+        const B_O: f32 = 2.0;
+        const H_O: f32 = 6.0;
+
         let p_field = self.environment.get_potential(waypoint_id, position);
-        let p_obstacles = self.scenario.obstacles.iter().map(|obs| obs.line);
-        todo!()
+        let p_obstacles: f32 = self
+            .scenario
+            .obstacles
+            .iter()
+            .map(|obs| {
+                let delta = distance_from_line(position, obs.line);
+                if delta > H_O {
+                    0.0
+                } else if delta < G_P_HALF {
+                    MU_O
+                } else {
+                    NU_O * (-A_O * delta.powf(B_O))
+                }
+            })
+            .sum();
+
+        p_field + p_obstacles
     }
 
     pub fn apply_next_state(&mut self, state: Vec<(Vec2, bool)>) {
@@ -197,14 +222,13 @@ fn poisson(lambda: f64) -> i32 {
 fn distance_from_line(point: Vec2, line: [Vec2; 2]) -> f32 {
     let a = point - line[0];
     let b = line[1] - line[0];
-    let b_len = b.length();
-    let dot = a.dot(b);
+    let b_len2 = b.length_squared();
 
-    if dot >= 0.0 && dot <= b_len {
-        let t = b * dot / b_len;
-        (a - t).length()
+    if b_len2 == 0.0 {
+        (a - line[0]).length()
     } else {
-        1e24
+        let t = (a.dot(b) / b_len2).max(0.0).min(1.0);
+        (t * b - a).length()
     }
 }
 
@@ -252,5 +276,6 @@ mod tests {
         let line = [vec2(1.0, 1.0), vec2(4.0, 1.0)];
 
         assert_float_absolute_eq!(distance_from_line(vec2(2.0, 3.0), line), 2.0);
+        assert_float_absolute_eq!(distance_from_line(vec2(0.0, 0.25), line), 1.25);
     }
 }
