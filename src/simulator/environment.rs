@@ -1,9 +1,11 @@
+use core::f32;
 use std::{cmp::Reverse, collections::BinaryHeap};
 
 use geo::Line;
 use geo_rasterize::BinaryBuilder;
 use glam::Vec2;
 use ndarray::{s, Array2};
+use num_traits::PrimInt;
 use ordered_float::NotNan;
 use thin_vec::ThinVec;
 
@@ -116,54 +118,91 @@ impl Environment {
             Accepted,
         }
 
-        let mut potential = Array2::from_elem(self.shape, f32::MAX);
-        let mut status = Array2::from_elem(self.shape, Status::Far);
-        let mut queue = BinaryHeap::<(Float, (usize, usize))>::new();
+        const F_DEF: f32 = 1.0;
+        const F_OBS: f32 = 1e4;
+
+        let mut potentials = Array2::from_elem(self.shape, f32::MAX);
+        let mut states = Array2::from_elem(self.shape, Status::Far);
+        let mut queue = BinaryHeap::<(Float, Index)>::new();
         let float = |x: f32| Reverse(NotNan::new(x).unwrap());
 
-        for j in 0..self.shape.1 {
-            for i in 0..self.shape.0 {
-                if let Some(&v) = target_map.get((j, i)) {
-                    if v {
-                        potential[(j, i)] = 0.0;
-                        status[(j, i)] = Accepted;
-                        queue.push((float(0.0), (j, i)));
-                    }
-                }
-            }
-        }
+        for y in 0..self.shape.1 {
+            for x in 0..self.shape.0 {
+                let ix = Index::new(x, y);
+                if target_map[ix] {
+                    potentials[ix] = 0.0;
+                    states[ix] = Accepted;
 
-        while let Some((u, (j, i))) = queue.pop() {
-            let u = u.0.into_inner();
-            status[(j, i)] = Accepted;
-
-            for (dj, di) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
-                match (j.checked_add_signed(dj), i.checked_add_signed(di)) {
-                    (Some(y), Some(x)) => {
-                        if status.get((y, x)).is_none() {
-                            continue;
-                        }
-
-                        if status[(y, x)] != Accepted {
-                            status[(y, x)] = Considered;
-                            let v = u + if self.obstacle_existence[(y, x)] {
-                                4096.0
+                    for (j, i) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
+                        let ix = ix.add(i, j);
+                        if ix.is_inside(self.shape) && states[ix] != Accepted {
+                            let u = if self.obstacle_existence[ix] {
+                                F_OBS
                             } else {
-                                1.0
+                                F_DEF
                             };
 
-                            if potential[(y, x)] > v {
-                                potential[(y, x)] = v;
-                                queue.push((float(v), (y, x)));
-                            }
+                            potentials[ix] = u;
+                            queue.push((float(u), ix));
+                            states[ix] = Considered;
                         }
                     }
-                    _ => {}
                 }
             }
         }
 
-        potential
+        while let Some((u, ix)) = queue.pop() {
+            let u = u.0.into_inner();
+            if states[ix] == Accepted {
+                continue;
+            }
+            states[ix] = Accepted;
+
+            for (j, i) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
+                let ix = ix.add(i, j);
+
+                if !ix.is_inside(self.shape) || states[ix] == Accepted {
+                    continue;
+                }
+                states[ix] = Considered;
+
+                let f = if self.obstacle_existence[ix] {
+                    F_OBS
+                } else {
+                    F_DEF
+                };
+
+                let (u1, u2) = if j == 0 {
+                    let u2a = potentials.get(ix.add(0, -1)).cloned().unwrap_or(f32::MAX);
+                    let u2b = potentials.get(ix.add(0, 1)).cloned().unwrap_or(f32::MAX);
+                    (u, u2a.min(u2b))
+                } else {
+                    let u1a = potentials.get(ix.add(-1, 0)).cloned().unwrap_or(f32::MAX);
+                    let u1b = potentials.get(ix.add(1, 0)).cloned().unwrap_or(f32::MAX);
+                    (u1a.min(u1b), u)
+                };
+
+                let u = if u1 == f32::MAX {
+                    u2 + f
+                } else if u2 == f32::MAX {
+                    u1 + f
+                } else {
+                    let sq = 2.0 * u1 * u2 - u1 * u1 - u2 * u2 + 2.0 * f * f;
+                    if sq >= 0.0 {
+                        (u1 + u2 + sq.sqrt()) / 2.0
+                    } else {
+                        f32::MAX
+                    }
+                };
+
+                if u < potentials[ix] {
+                    potentials[ix] = u;
+                    queue.push((float(u), ix));
+                }
+            }
+        }
+
+        potentials
     }
 
     pub fn get_potential(&self, waypoint_id: usize, position: Vec2) -> f32 {
@@ -191,6 +230,42 @@ impl Environment {
                     * ty
             })
             .sum()
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Index {
+    pub y: i32,
+    pub x: i32,
+}
+
+impl Index {
+    pub fn new<T: PrimInt>(x: T, y: T) -> Self {
+        Index {
+            x: x.to_i32().unwrap(),
+            y: y.to_i32().unwrap(),
+        }
+    }
+
+    pub fn add<T: PrimInt>(self, x: T, y: T) -> Self {
+        Index {
+            x: self.x + x.to_i32().unwrap(),
+            y: self.y + y.to_i32().unwrap(),
+        }
+    }
+
+    pub fn is_inside(self, shape: (usize, usize)) -> bool {
+        self.x >= 0 && self.x < shape.1 as i32 && self.y >= 0 && self.y < shape.0 as i32
+    }
+}
+
+unsafe impl ndarray::NdIndex<ndarray::Ix2> for Index {
+    fn index_checked(&self, dim: &ndarray::Ix2, strides: &ndarray::Ix2) -> Option<isize> {
+        (self.y as usize, self.x as usize).index_checked(dim, strides)
+    }
+
+    fn index_unchecked(&self, strides: &ndarray::Ix2) -> isize {
+        (self.y as usize, self.x as usize).index_unchecked(strides)
     }
 }
 

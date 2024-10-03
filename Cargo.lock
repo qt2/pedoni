@@ -2556,6 +2556,7 @@ dependencies = [
  "glam",
  "image 0.25.2",
  "ndarray",
+ "num-traits",
  "once_cell",
  "ordered-float",
  "rayon",

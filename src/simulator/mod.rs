@@ -81,7 +81,7 @@ impl Simulator {
 
     pub fn calc_next_state(&self) -> Vec<(Vec2, bool)> {
         const Q: i32 = 16;
-        const R: f32 = 1.0;
+        const R: f32 = 0.5;
 
         self.pedestrians
             .par_iter()
@@ -114,9 +114,11 @@ impl Simulator {
 
         // Parameters on obstacles
         const MU_O: f32 = 10000.0;
-        const NU_O: f32 = 0.2;
+        // const NU_O: f32 = 0.2;
+        const NU_O: f32 = 0.8;
         const A_O: f32 = 3.0;
-        const B_O: f32 = 2.0;
+        // const B_O: f32 = 2.0;
+        const B_O: f32 = 1.5;
         const H_O: f32 = 6.0;
 
         let p_field = self.environment.get_potential(waypoint_id, position);
@@ -131,12 +133,12 @@ impl Simulator {
                 } else if delta < G_P_HALF {
                     MU_O
                 } else {
-                    NU_O * (-A_O * delta.powf(B_O))
+                    NU_O * (-A_O * delta.powf(B_O)).exp()
                 }
             })
             .sum();
 
-        p_field + p_obstacles
+        0.1 * p_field + p_obstacles
     }
 
     pub fn apply_next_state(&mut self, state: Vec<(Vec2, bool)>) {

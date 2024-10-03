@@ -84,7 +84,7 @@ impl Default for Config {
     fn default() -> Self {
         Config {
             delta_time: 0.1,
-            playback_speed: 1.0,
+            playback_speed: 4.0,
         }
     }
 }
