@@ -6,9 +6,8 @@ pub use callback::{DrawCommand, RenderCallback, RenderResources};
 use camera::{Camera, View};
 use eframe::{egui, wgpu};
 use fill::Instance;
-use glam::Vec2;
 
-use crate::SIMULATOR;
+use crate::{SIMULATOR, STATE};
 
 const COLORS: &[[u8; 4]] = &[
     [255, 0, 0, 255],
@@ -40,12 +39,47 @@ impl eframe::App for Renderer {
             });
         });
 
+        let mut state = STATE.lock().unwrap();
+
         egui::Window::new("controller")
             .open(&mut true)
             .show(ctx, |ui| {
-                ui.heading("Controller");
-                if ui.button("Pause").clicked() {}
-                ui.add(egui::DragValue::new(&mut 30));
+                egui::Grid::new("controller-grid")
+                    .num_columns(2)
+                    .spacing([40.0, 4.0])
+                    .striped(true)
+                    .show(ui, |ui| {
+                        ui.label("Play/Pause");
+                        if ui
+                            .button(if state.paused { "Play" } else { "Pause" })
+                            .clicked()
+                        {
+                            state.paused ^= true;
+                        }
+                        ui.end_row();
+
+                        ui.label("Playback Speed");
+                        ui.add(
+                            egui::DragValue::new(&mut state.playback_speed)
+                                .suffix("x")
+                                .speed(0.1)
+                                .clamp_range(0.1..=100.0),
+                        );
+                        ui.end_row();
+
+                        ui.label("Theme");
+                        ui.horizontal(|ui| {
+                            if ui.button("toggle").clicked() {
+                                ctx.set_visuals(if ui.visuals().dark_mode {
+                                    egui::Visuals::light()
+                                } else {
+                                    egui::Visuals::dark()
+                                });
+                            }
+                        });
+                        ui.end_row();
+                    });
+                ui.end_row();
             });
 
         ctx.request_repaint();

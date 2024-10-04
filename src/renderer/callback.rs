@@ -74,6 +74,7 @@ impl MeshRegistry {
         self.mapping.insert(id, ranges);
     }
 
+    #[allow(unused)]
     pub fn add(
         &mut self,
         queue: &wgpu::Queue,

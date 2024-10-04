@@ -3,11 +3,12 @@ pub mod simulator;
 
 use std::{
     fs,
-    sync::RwLock,
+    sync::{Mutex, RwLock},
     thread,
     time::{Duration, Instant},
 };
 
+use log::info;
 use once_cell::sync::Lazy;
 
 use crate::{
@@ -17,10 +18,25 @@ use crate::{
 
 static SIMULATOR: Lazy<RwLock<Simulator>> =
     Lazy::new(|| RwLock::new(Simulator::with_scenario(Scenario::default())));
+static STATE: Mutex<State> = Mutex::new(State {
+    paused: false,
+    replay_requested: false,
+    delta_time: 0.1,
+    playback_speed: 4.0,
+});
+
+#[derive(Debug, Clone)]
+pub struct State {
+    pub paused: bool,
+    pub replay_requested: bool,
+    pub delta_time: f64,
+    pub playback_speed: f64,
+}
 
 fn main() -> anyhow::Result<()> {
-    let config = Config::default();
-    let min_interval = Duration::from_secs_f32(config.delta_time / config.playback_speed);
+    env_logger::builder()
+        .filter_module("pedoni", log::LevelFilter::Info)
+        .init();
 
     let scenario = fs::read_to_string("scenarios/default.toml")?;
     let scenario: Scenario = toml::from_str(&scenario)?;
@@ -30,28 +46,31 @@ fn main() -> anyhow::Result<()> {
         *simulator = Simulator::with_scenario(scenario);
     }
 
-    println!("done");
+    info!("successfully loaded a scenario");
 
     thread::spawn(move || loop {
         let start = Instant::now();
+        let state = STATE.lock().unwrap().clone();
 
-        {
-            let mut simulator = SIMULATOR.write().unwrap();
-            simulator.spawn_pedestrians();
-        }
+        if !state.paused {
+            {
+                let mut simulator = SIMULATOR.write().unwrap();
+                simulator.spawn_pedestrians();
+            }
 
-        let next_state = {
-            let simulator = SIMULATOR.read().unwrap();
-            simulator.calc_next_state()
-        };
+            let next_state = {
+                let simulator = SIMULATOR.read().unwrap();
+                simulator.calc_next_state()
+            };
 
-        {
-            let mut simulator = SIMULATOR.write().unwrap();
-            simulator.apply_next_state(next_state);
+            {
+                let mut simulator = SIMULATOR.write().unwrap();
+                simulator.apply_next_state(next_state);
+            }
         }
 
         let calc_time = Instant::now() - start;
-
+        let min_interval = Duration::from_secs_f64(state.delta_time / state.playback_speed);
         if calc_time < min_interval {
             thread::sleep(min_interval - calc_time);
         }
@@ -71,20 +90,4 @@ fn main() -> anyhow::Result<()> {
     .unwrap();
 
     Ok(())
-}
-
-pub struct Config {
-    /// Delta time (in seconds)
-    delta_time: f32,
-    /// Max playback speed (1x)
-    playback_speed: f32,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Config {
-            delta_time: 0.1,
-            playback_speed: 4.0,
-        }
-    }
 }

@@ -1,5 +1,5 @@
 use eframe::wgpu;
-use glam::{vec2, Affine2, Mat2, Vec2};
+use glam::{vec2, Mat2, Vec2};
 
 use super::PipelineSet;
 
@@ -122,7 +122,7 @@ pub fn setup_fill_pipeline(
 
 #[cfg(test)]
 mod tests {
-    use glam::{vec2, Mat2};
+    use glam::vec2;
 
     use super::Instance;
 
