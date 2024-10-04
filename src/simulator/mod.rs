@@ -1,11 +1,12 @@
-pub mod environment;
+// pub mod field;
+pub mod field;
 pub mod models;
 pub mod scenario;
 
 use std::f32::consts::PI;
 
 use crate::renderer::{fill::Instance, DrawCommand};
-use environment::Environment;
+use field::Field;
 use glam::{vec2, Vec2};
 use ordered_float::NotNan;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
@@ -19,7 +20,7 @@ const INV_TAU_A: f32 = 1.0 / TAU_A;
 #[derive(Default)]
 pub struct Simulator {
     pub scenario: Scenario,
-    pub environment: Environment,
+    pub field: Field,
     pub pedestrians: Vec<Pedestrian>,
     pub static_draw_commands: Vec<DrawCommand>,
 }
@@ -27,7 +28,7 @@ pub struct Simulator {
 impl Simulator {
     /// Create new simulator instance with scenario
     pub fn with_scenario(scenario: Scenario) -> Self {
-        let environment = Environment::from_scenario(&scenario);
+        let field = Field::from_scenario(&scenario);
 
         let obs_instances = scenario
             .obstacles
@@ -53,7 +54,7 @@ impl Simulator {
 
         Simulator {
             scenario,
-            environment,
+            field,
             pedestrians: vec![],
             static_draw_commands,
         }
@@ -87,7 +88,7 @@ impl Simulator {
             .par_iter()
             .filter(|ped| ped.active)
             .map(|ped| {
-                let active = self.environment.get_potential(ped.destination, ped.pos) > 2.0;
+                let active = self.field.get_potential(ped.destination, ped.pos) > 2.0;
 
                 let position = (0..Q)
                     .map(|k| {
@@ -121,7 +122,7 @@ impl Simulator {
         const B_O: f32 = 1.5;
         const H_O: f32 = 6.0;
 
-        let p_field = self.environment.get_potential(waypoint_id, position);
+        let p_field = self.field.get_potential(waypoint_id, position);
         let p_obstacles: f32 = self
             .scenario
             .obstacles
@@ -195,7 +196,7 @@ impl Simulator {
     //     accels
     // }
 
-    // /// Tick and update environment
+    // /// Tick and update field
     // pub fn tick(&mut self, accels: Vec<Vec2>) {
     //     self.pedestrians
     //         .par_iter_mut()
