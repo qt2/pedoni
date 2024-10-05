@@ -9,7 +9,7 @@ use crate::renderer::{fill::Instance, DrawCommand};
 use field::Field;
 use glam::{vec2, Vec2};
 use ordered_float::NotNan;
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use scenario::Scenario;
 
 /// Simulator instance
@@ -81,8 +81,9 @@ impl Simulator {
 
         self.pedestrians
             .par_iter()
-            .filter(|ped| ped.active)
-            .map(|ped| {
+            .enumerate()
+            .filter(|(_, ped)| ped.active)
+            .map(|(i, ped)| {
                 let active = self.field.get_potential(ped.destination, ped.pos) > 2.0;
 
                 let position = (0..Q)
@@ -90,7 +91,7 @@ impl Simulator {
                         let phi = 2.0 * PI / Q as f32 * (k as f32 + fastrand::f32());
                         let x_k = ped.pos + R * vec2(phi.cos(), phi.sin());
 
-                        let p = self.get_potential(ped.destination, x_k);
+                        let p = self.get_potential(i, ped.destination, x_k);
 
                         (NotNan::new(p).unwrap(), x_k)
                     })
@@ -114,21 +115,48 @@ impl Simulator {
             });
     }
 
-    fn get_potential(&self, waypoint_id: usize, position: Vec2) -> f32 {
+    fn get_potential(&self, pedestrian_id: usize, waypoint_id: usize, position: Vec2) -> f32 {
         /// Pedestrian torso
         const G_P: f32 = 0.4;
         const G_P_HALF: f32 = G_P / 2.0;
 
+        // Parameters on pedestrians
+        const MU_P: f32 = 1000.0;
+        const NU_P: f32 = 0.4;
+        const A_P: f32 = 1.0;
+        const B_P: f32 = 0.2;
+        const H_P: f32 = 1.0;
+
         // Parameters on obstacles
         const MU_O: f32 = 10000.0;
-        // const NU_O: f32 = 0.2;
-        const NU_O: f32 = 0.8;
+        const NU_O: f32 = 0.2;
         const A_O: f32 = 3.0;
-        // const B_O: f32 = 2.0;
-        const B_O: f32 = 1.5;
+        const B_O: f32 = 2.0;
         const H_O: f32 = 6.0;
 
-        let p_field = self.field.get_potential(waypoint_id, position);
+        let p_field = 0.2 * self.field.get_potential(waypoint_id, position);
+
+        if p_field < 4.0 {
+            return p_field;
+        }
+
+        let p_pedestrians: f32 = self
+            .pedestrians
+            .iter()
+            .take(pedestrian_id)
+            .chain(self.pedestrians.iter().skip(pedestrian_id + 1))
+            .map(|ped| {
+                let delta = (position - ped.pos).length();
+                if delta > G_P + H_P {
+                    0.0
+                } else if delta <= G_P {
+                    MU_P
+                } else {
+                    NU_P * (-A_P * delta.powf(B_P)).exp()
+                }
+            })
+            .sum();
+
         let p_obstacles: f32 = self
             .scenario
             .obstacles
@@ -145,7 +173,7 @@ impl Simulator {
             })
             .sum();
 
-        p_field + p_obstacles
+        p_field + p_pedestrians + p_obstacles
     }
 }
 
@@ -154,12 +182,7 @@ impl Simulator {
 pub struct Pedestrian {
     pub active: bool,
     pub pos: Vec2,
-    // pub vel: Vec2,
-    // pub vel_prefered: Vec2,
-    // pub destination: Vec2,
     pub destination: usize,
-    // pub v0: f32,
-    // pub vmax: f32,
 }
 
 impl Default for Pedestrian {
@@ -171,12 +194,7 @@ impl Default for Pedestrian {
         Pedestrian {
             active: true,
             pos: Vec2::default(),
-            // vel: Vec2::default(),
-            // vel_prefered: Vec2::default(),
-            // destination: Vec2::default(),
             destination: 0,
-            // v0,
-            // vmax: v0 * 1.3,
         }
     }
 }
