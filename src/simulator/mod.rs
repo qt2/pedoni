@@ -1,5 +1,5 @@
+pub mod diagnostic;
 pub mod field;
-// pub mod models;
 pub mod scenario;
 pub mod util;
 

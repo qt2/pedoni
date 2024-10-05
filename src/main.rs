@@ -10,6 +10,7 @@ use std::{
 
 use log::info;
 use once_cell::sync::Lazy;
+use simulator::diagnostic::{Diagnostic, DiagnosticMetrics};
 
 use crate::{
     renderer::Renderer,
@@ -24,6 +25,7 @@ static STATE: Mutex<State> = Mutex::new(State {
     delta_time: 0.1,
     playback_speed: 4.0,
 });
+static DIAGNOSTIC: Lazy<Mutex<Diagnostic>> = Lazy::new(|| Mutex::new(Diagnostic::default()));
 
 #[derive(Debug, Clone)]
 pub struct State {
@@ -58,15 +60,25 @@ fn main() -> anyhow::Result<()> {
                 simulator.spawn_pedestrians();
             }
 
-            let next_state = {
+            let (time_calc_state, next_state) = {
                 let simulator = SIMULATOR.read().unwrap();
-                simulator.calc_next_state()
+                (Instant::now(), simulator.calc_next_state())
             };
+            let time_calc_state = time_calc_state.elapsed().as_secs_f64();
+            let active_ped_count = next_state.len() as i32;
 
-            {
+            let (time_apply_state, _) = {
                 let mut simulator = SIMULATOR.write().unwrap();
-                simulator.apply_next_state(next_state);
-            }
+                (Instant::now(), simulator.apply_next_state(next_state))
+            };
+            let time_apply_state = time_apply_state.elapsed().as_secs_f64();
+
+            let mut diagnostic = DIAGNOSTIC.lock().unwrap();
+            diagnostic.push(DiagnosticMetrics {
+                active_ped_count,
+                time_calc_state,
+                time_apply_state,
+            });
         }
 
         let calc_time = Instant::now() - start;
