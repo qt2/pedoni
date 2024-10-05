@@ -5,12 +5,17 @@ pub mod util;
 
 use std::f32::consts::PI;
 
-use crate::renderer::{fill::Instance, DrawCommand};
-use field::Field;
-use glam::{vec2, Vec2};
+use crate::{
+    renderer::{fill::Instance, DrawCommand},
+    State, STATE,
+};
+use field::{Field, Index};
+use glam::{vec2, Vec2, Vec2Swizzles};
+use ndarray::Array2;
 use ordered_float::NotNan;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use scenario::Scenario;
+use thin_vec::ThinVec;
 
 /// Simulator instance
 #[derive(Default)]
@@ -19,6 +24,8 @@ pub struct Simulator {
     pub field: Field,
     pub pedestrians: Vec<Pedestrian>,
     pub static_draw_commands: Vec<DrawCommand>,
+    pub neighbor_grid: Option<Array2<ThinVec<u32>>>,
+    pub neighbor_grid_belong: Option<Vec<Index>>,
 }
 
 impl Simulator {
@@ -32,6 +39,8 @@ impl Simulator {
             field,
             pedestrians: vec![],
             static_draw_commands,
+            neighbor_grid: None,
+            neighbor_grid_belong: None,
         }
     }
 
@@ -73,6 +82,37 @@ impl Simulator {
                 })
             }
         }
+
+        let State {
+            use_neighbor_grid,
+            neighbor_grid_unit,
+            ..
+        } = *STATE.lock().unwrap();
+
+        (self.neighbor_grid, self.neighbor_grid_belong) = if use_neighbor_grid {
+            let shape = (self.scenario.field.size / neighbor_grid_unit).ceil();
+            let shape = (shape.y as usize, shape.x as usize);
+            let mut grid = Array2::from_elem(shape, ThinVec::new());
+            let mut belong = vec![Index::default(); self.pedestrians.len()];
+
+            for (i, pedestrian) in self
+                .pedestrians
+                .iter()
+                .enumerate()
+                .filter(|(_, ped)| ped.active)
+            {
+                let ix = (pedestrian.pos / neighbor_grid_unit).ceil().as_ivec2();
+                let ix = Index::new(ix.x, ix.y);
+                if ix.is_inside(shape) {
+                    grid[ix].push(i as u32);
+                    belong[i] = ix;
+                }
+            }
+
+            (Some(grid), Some(belong))
+        } else {
+            (None, None)
+        };
     }
 
     pub fn calc_next_state(&self) -> Vec<(Vec2, bool)> {
@@ -140,23 +180,44 @@ impl Simulator {
             return p_field;
         }
 
-        let p_pedestrians: f32 = self
-            .pedestrians
-            .iter()
-            .take(pedestrian_id)
-            .chain(self.pedestrians.iter().skip(pedestrian_id + 1))
-            .map(|ped| {
-                let delta = (position - ped.pos).length();
-                if delta > G_P + H_P {
-                    0.0
-                } else if delta <= G_P {
-                    MU_P
-                } else {
-                    NU_P * (-A_P * delta.powf(B_P)).exp()
-                }
-            })
-            .sum();
+        let potential_ped_from_distance = |delta: f32| {
+            if delta > G_P + H_P {
+                0.0
+            } else if delta <= G_P {
+                MU_P
+            } else {
+                NU_P * (-A_P * delta.powf(B_P)).exp()
+            }
+        };
 
+        let p_pedestrians = if let Some(ref grid) = self.neighbor_grid {
+            let ix = self.neighbor_grid_belong.as_ref().unwrap()[pedestrian_id];
+            let mut potential = 0.0;
+
+            for j in -1..=1 {
+                for i in -1..=1 {
+                    let ix = ix.add(i, j);
+                    if ix.is_inside(grid.dim()) {
+                        for &id in grid[ix].iter().filter(|i| **i != pedestrian_id as u32) {
+                            let delta = (position - self.pedestrians[id as usize].pos).length();
+                            potential += potential_ped_from_distance(delta);
+                        }
+                    }
+                }
+            }
+
+            potential
+        } else {
+            self.pedestrians
+                .iter()
+                .take(pedestrian_id)
+                .chain(self.pedestrians.iter().skip(pedestrian_id + 1))
+                .map(|ped| {
+                    let delta = (position - ped.pos).length();
+                    potential_ped_from_distance(delta)
+                })
+                .sum()
+        };
         let p_obstacles: f32 = self
             .scenario
             .obstacles

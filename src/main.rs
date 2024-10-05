@@ -24,6 +24,8 @@ static STATE: Mutex<State> = Mutex::new(State {
     replay_requested: false,
     delta_time: 0.1,
     playback_speed: 4.0,
+    use_neighbor_grid: false,
+    neighbor_grid_unit: 2.0,
 });
 static DIAGNOSTIC: Lazy<Mutex<Diagnostic>> = Lazy::new(|| Mutex::new(Diagnostic::default()));
 
@@ -33,6 +35,8 @@ pub struct State {
     pub replay_requested: bool,
     pub delta_time: f64,
     pub playback_speed: f64,
+    pub use_neighbor_grid: bool,
+    pub neighbor_grid_unit: f32,
 }
 
 fn main() -> anyhow::Result<()> {
