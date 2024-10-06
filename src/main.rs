@@ -20,7 +20,7 @@ use crate::{
 static SIMULATOR: Lazy<RwLock<Simulator>> =
     Lazy::new(|| RwLock::new(Simulator::with_scenario(Scenario::default())));
 static STATE: Mutex<State> = Mutex::new(State {
-    paused: false,
+    paused: true,
     replay_requested: false,
     delta_time: 0.1,
     playback_speed: 4.0,

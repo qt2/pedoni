@@ -13,7 +13,7 @@ impl Default for Camera {
         Camera {
             position: Vec2::ZERO,
             size: vec2(640.0, 360.0),
-            scale: 16.0,
+            scale: 8.0,
             _padding: 0.0,
         }
     }
@@ -33,7 +33,7 @@ impl From<&Camera> for View {
         let Affine2 {
             matrix2,
             translation,
-        } = Affine2::from_scale(camera.scale / camera.size)
+        } = Affine2::from_scale(2.0 * camera.scale / camera.size)
             * Affine2::from_translation(-camera.position);
 
         View {

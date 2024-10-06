@@ -10,7 +10,7 @@ use crate::{
     State, STATE,
 };
 use field::{Field, Index};
-use glam::{vec2, Vec2, Vec2Swizzles};
+use glam::{vec2, Vec2};
 use ndarray::Array2;
 use ordered_float::NotNan;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};

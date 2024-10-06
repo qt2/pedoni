@@ -9,6 +9,7 @@ use eframe::{
     wgpu,
 };
 use fill::Instance;
+use glam::vec2;
 
 use crate::{DIAGNOSTIC, SIMULATOR, STATE};
 
@@ -163,10 +164,21 @@ impl Renderer {
         let camera = &mut self.camera;
         camera.size = glam::vec2(size.x, size.y);
 
-        let delta_wheel_y = ctx.input(|i| i.smooth_scroll_delta).y;
-        camera.scale *= 2.0_f32.powf(delta_wheel_y * 0.01);
+        if let Some(mouse_pos) = response.hover_pos() {
+            let delta_wheel_y = ctx.input(|i| i.smooth_scroll_delta).y;
 
-        let delta_drag = 1.0 * response.drag_delta() / camera.scale;
+            if delta_wheel_y != 0.0 {
+                let d = mouse_pos - size / 2.0;
+                let d = vec2(d.x, -d.y) / camera.scale;
+                let scale_mul = 2.0_f32.powf(delta_wheel_y * 0.01);
+                camera.scale *= scale_mul;
+                camera.position += d * (1.0 - scale_mul.recip());
+            }
+        }
+
+        // let dpi = ctx.native_pixels_per_point().unwrap_or_default();
+        let delta_drag = response.drag_delta() / camera.scale; // double it for matching wgpu's coordinate system
+
         camera.position.x -= delta_drag.x;
         camera.position.y += delta_drag.y;
 
