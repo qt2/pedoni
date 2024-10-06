@@ -5,11 +5,12 @@ pub mod fill;
 pub use callback::{DrawCommand, RenderCallback, RenderResources};
 use camera::{Camera, View};
 use eframe::{
-    egui::{self, RichText},
+    egui::{self, Modifiers, RichText},
     wgpu,
 };
 use fill::Instance;
 use glam::vec2;
+use log::info;
 
 use crate::{DIAGNOSTIC, SIMULATOR, STATE};
 
@@ -22,19 +23,68 @@ const COLORS: &[[u8; 4]] = &[
     [0, 255, 255, 255],
 ];
 
+#[derive(Debug)]
 pub struct Renderer {
     camera: Camera,
+    show_controller: bool,
+    show_diagnostic: bool,
+}
+
+impl Default for Renderer {
+    fn default() -> Self {
+        Self {
+            camera: Default::default(),
+            show_controller: true,
+            show_diagnostic: true,
+        }
+    }
 }
 
 impl eframe::App for Renderer {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
-            ui.horizontal_wrapped(|ui| {
-                ui.visuals_mut().button_frame = false;
-                for name in ["File", "Edit", "View"] {
-                    if ui.selectable_label(false, name).clicked() {}
-                }
-            });
+            let open_scenario_shortcut =
+                egui::KeyboardShortcut::new(Modifiers::COMMAND, egui::Key::O);
+
+            egui::menu::bar(ui, |ui| {
+                ui.menu_button("File", |ui| {
+                    if ui
+                        .add(
+                            egui::Button::new("Open scenario")
+                                .shortcut_text(ui.ctx().format_shortcut(&open_scenario_shortcut)),
+                        )
+                        .clicked()
+                    {
+                        if let Some(path) = rfd::FileDialog::new().pick_file() {
+                            info!("Loading scenario: {}", path.to_string_lossy());
+                        }
+                        ui.close_menu();
+                    }
+                });
+
+                ui.menu_button("View", |ui| {
+                    let mut show_button = |text: &str, value: &mut bool| {
+                        if ui
+                            .add(egui::Button::new(format!(
+                                "{} {text}",
+                                if *value { "✔" } else { "    " }
+                            )))
+                            .clicked()
+                        {
+                            *value ^= true;
+                            ui.close_menu();
+                        }
+                    };
+
+                    show_button("Controller", &mut self.show_controller);
+                    show_button("Diagnostic", &mut self.show_diagnostic);
+
+                    // if ui.add(egui::Button::new("✔ Diagnostic")).clicked() {
+                    //     self.show_diagnostic ^= true;
+                    //     ui.close_menu();
+                    // }
+                })
+            })
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -48,7 +98,7 @@ impl eframe::App for Renderer {
             let last_metrics = diagnostic.last();
 
             egui::Window::new("diagnostic")
-                .open(&mut true)
+                .open(&mut self.show_diagnostic)
                 .show(ctx, |ui| {
                     egui::Grid::new("diagnostic-grid")
                         .num_columns(2)
@@ -82,7 +132,7 @@ impl eframe::App for Renderer {
         {
             let mut state = STATE.lock().unwrap();
             egui::Window::new("controller")
-                .open(&mut true)
+                .open(&mut self.show_controller)
                 .show(ctx, |ui| {
                     egui::Grid::new("controller-grid")
                         .num_columns(2)
@@ -152,9 +202,7 @@ impl Renderer {
         let resoureces = &mut render_state.renderer.write().callback_resources;
         resoureces.insert(render_resources);
 
-        Renderer {
-            camera: Camera::default(),
-        }
+        Renderer::default()
     }
 
     pub fn draw_canvas(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
