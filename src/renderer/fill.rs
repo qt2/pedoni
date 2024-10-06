@@ -89,12 +89,12 @@ pub fn setup_fill_pipeline(
             module: &shader,
             entry_point: "vs_main",
             buffers: &[Vertex::desc(), Instance::desc()],
-            // compilation_options: wgpu::PipelineCompilationOptions::default(),
+            compilation_options: wgpu::PipelineCompilationOptions::default(),
         },
         fragment: Some(wgpu::FragmentState {
             module: &shader,
             entry_point: "fs_main",
-            // compilation_options: wgpu::PipelineCompilationOptions::default(),
+            compilation_options: wgpu::PipelineCompilationOptions::default(),
             targets: &[Some(wgpu::ColorTargetState {
                 format: target_format,
                 blend: Some(wgpu::BlendState::ALPHA_BLENDING),
@@ -111,7 +111,7 @@ pub fn setup_fill_pipeline(
             ..Default::default()
         },
         multiview: None,
-        // cache: None,
+        cache: None,
     });
 
     PipelineSet {

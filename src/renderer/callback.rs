@@ -253,11 +253,11 @@ impl egui_wgpu::CallbackTrait for RenderCallback {
         Vec::new()
     }
 
-    fn paint<'a>(
-        &'a self,
+    fn paint(
+        &self,
         _info: eframe::egui::PaintCallbackInfo,
-        render_pass: &mut eframe::wgpu::RenderPass<'a>,
-        callback_resources: &'a egui_wgpu::CallbackResources,
+        render_pass: &mut wgpu::RenderPass<'static>,
+        callback_resources: &egui_wgpu::CallbackResources,
     ) {
         let resources: &RenderResources = callback_resources.get().unwrap();
 

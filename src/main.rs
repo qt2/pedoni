@@ -101,7 +101,7 @@ fn main() -> anyhow::Result<()> {
     eframe::run_native(
         "Pedoni",
         options,
-        Box::new(|cc| Box::new(Renderer::new(cc))),
+        Box::new(|cc| Ok(Box::new(Renderer::new(cc)))),
     )
     .unwrap();
 

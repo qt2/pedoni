@@ -8,6 +8,7 @@ use eframe::{
     egui::{self, Modifiers, RichText},
     wgpu,
 };
+use egui_extras::Column;
 use fill::Instance;
 use glam::vec2;
 use log::info;
@@ -78,13 +79,55 @@ impl eframe::App for Renderer {
 
                     show_button("Controller", &mut self.show_controller);
                     show_button("Diagnostic", &mut self.show_diagnostic);
-
-                    // if ui.add(egui::Button::new("✔ Diagnostic")).clicked() {
-                    //     self.show_diagnostic ^= true;
-                    //     ui.close_menu();
-                    // }
                 })
             })
+        });
+
+        egui::SidePanel::right("right-panel").show(ctx, |ui| {
+            egui::ScrollArea::new([false, true]).show(ui, |ui| {
+                egui::CollapsingHeader::new("Pedestrians")
+                    .default_open(true)
+                    .show(ui, |ui| {
+                        let mut table = egui_extras::TableBuilder::new(ui)
+                            .columns(Column::auto(), 3)
+                            .column(Column::remainder());
+                        table = table.sense(egui::Sense::click());
+
+                        let table = table.header(20.0, |mut header| {
+                            header.col(|_ui| {});
+                            header.col(|ui| {
+                                ui.strong("Origin");
+                            });
+                            header.col(|ui| {
+                                ui.strong("Dest");
+                            });
+                            header.col(|ui| {
+                                ui.strong("ID");
+                            });
+                        });
+
+                        {
+                            let pedestrians = &SIMULATOR.read().unwrap().scenario.pedestrians;
+                            table.body(|body| {
+                                body.rows(20.0, pedestrians.len(), |mut row| {
+                                    let ped = &pedestrians[row.index()];
+                                    row.col(|ui| {
+                                        ui.strong("🚶");
+                                    });
+                                    row.col(|ui| {
+                                        ui.strong(ped.origin.to_string());
+                                    });
+                                    row.col(|ui| {
+                                        ui.strong(ped.destination.to_string());
+                                    });
+                                    row.col(|ui| {
+                                        ui.label("");
+                                    });
+                                });
+                            })
+                        }
+                    });
+            });
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
