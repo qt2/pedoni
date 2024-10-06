@@ -84,57 +84,48 @@ impl eframe::App for Renderer {
         });
 
         egui::SidePanel::right("right-panel").show(ctx, |ui| {
-            egui::ScrollArea::new([false, true]).show(ui, |ui| {
-                egui::CollapsingHeader::new("Pedestrians")
-                    .default_open(true)
-                    .show(ui, |ui| {
-                        let mut table = egui_extras::TableBuilder::new(ui)
-                            .columns(Column::auto(), 3)
-                            .column(Column::remainder());
-                        table = table.sense(egui::Sense::click());
+            egui::ScrollArea::new([false, true])
+                .auto_shrink(false)
+                .show(ui, |ui| {
+                    egui::CollapsingHeader::new("Pedestrians")
+                        .default_open(true)
+                        .show(ui, |ui| {
+                            let mut table = egui_extras::TableBuilder::new(ui)
+                                .column(Column::auto())
+                                .column(Column::remainder());
+                            table = table.sense(egui::Sense::click());
 
-                        let table = table.header(20.0, |mut header| {
-                            header.col(|_ui| {});
-                            header.col(|ui| {
-                                ui.strong("Origin");
-                            });
-                            header.col(|ui| {
-                                ui.strong("Dest");
-                            });
-                            header.col(|ui| {
-                                ui.strong("ID");
-                            });
+                            {
+                                let pedestrians = &SIMULATOR.read().unwrap().scenario.pedestrians;
+                                table.body(|body| {
+                                    body.rows(20.0, pedestrians.len(), |mut row| {
+                                        let index = row.index();
+                                        let ped = &pedestrians[index];
+                                        row.col(|ui| {
+                                            ui.strong("🚶");
+                                        });
+                                        row.col(|ui| {
+                                            ui.strong(format!(
+                                                "#{} ({} -> {})",
+                                                index, ped.origin, ped.destination
+                                            ));
+                                        });
+                                    });
+                                })
+                            }
                         });
+                });
+        });
 
-                        {
-                            let pedestrians = &SIMULATOR.read().unwrap().scenario.pedestrians;
-                            table.body(|body| {
-                                body.rows(20.0, pedestrians.len(), |mut row| {
-                                    let ped = &pedestrians[row.index()];
-                                    row.col(|ui| {
-                                        ui.strong("🚶");
-                                    });
-                                    row.col(|ui| {
-                                        ui.strong(ped.origin.to_string());
-                                    });
-                                    row.col(|ui| {
-                                        ui.strong(ped.destination.to_string());
-                                    });
-                                    row.col(|ui| {
-                                        ui.label("");
-                                    });
-                                });
-                            })
-                        }
+        egui::CentralPanel::default()
+            .frame(egui::Frame::central_panel(&ctx.style()).inner_margin(0.0))
+            .show(ctx, |ui| {
+                egui::Frame::canvas(ui.style())
+                    .rounding(0.0)
+                    .show(ui, |ui| {
+                        self.draw_canvas(ui, ctx);
                     });
             });
-        });
-
-        egui::CentralPanel::default().show(ctx, |ui| {
-            egui::Frame::canvas(ui.style()).show(ui, |ui| {
-                self.draw_canvas(ui, ctx);
-            });
-        });
 
         {
             let diagnostic = DIAGNOSTIC.lock().unwrap();
@@ -196,7 +187,7 @@ impl eframe::App for Renderer {
                                 egui::DragValue::new(&mut state.playback_speed)
                                     .suffix("x")
                                     .speed(0.1)
-                                    .clamp_range(0.1..=100.0),
+                                    .range(0.1..=100.0),
                             );
                             ui.end_row();
 
@@ -209,7 +200,7 @@ impl eframe::App for Renderer {
                                 egui::DragValue::new(&mut state.neighbor_grid_unit)
                                     .suffix("m")
                                     .speed(0.1)
-                                    .clamp_range(0.1..=100.0),
+                                    .range(0.1..=100.0),
                             );
                             ui.end_row();
 
@@ -244,6 +235,13 @@ impl Renderer {
         let render_resources = RenderResources::new(render_state);
         let resoureces = &mut render_state.renderer.write().callback_resources;
         resoureces.insert(render_resources);
+
+        // cc.egui_ctx.all_styles_mut(|style| {
+        //     *style
+        //         .text_styles
+        //         .get_mut(&egui::TextStyle::Heading)
+        //         .unwrap() = style.text_styles[&egui::TextStyle::Body].clone();
+        // });
 
         Renderer::default()
     }
