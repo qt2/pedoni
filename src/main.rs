@@ -2,14 +2,15 @@ pub mod renderer;
 pub mod simulator;
 
 use std::{
-    fs,
+    fs::{self},
     sync::{Mutex, RwLock},
     thread,
     time::{Duration, Instant},
 };
 
-use log::info;
+use log::{info, warn};
 use once_cell::sync::Lazy;
+use serde::{Deserialize, Serialize};
 use simulator::diagnostic::{Diagnostic, DiagnosticMetrics};
 
 use crate::{
@@ -29,7 +30,7 @@ static STATE: Mutex<State> = Mutex::new(State {
 });
 static DIAGNOSTIC: Lazy<Mutex<Diagnostic>> = Lazy::new(|| Mutex::new(Diagnostic::default()));
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct State {
     pub paused: bool,
     pub replay_requested: bool,
@@ -39,10 +40,42 @@ pub struct State {
     pub neighbor_grid_unit: f32,
 }
 
+const CONFIG_DIR: &str = ".pedoni";
+const STATE_FILE: &str = "state.json";
+
+fn load_state() {
+    let config_dir = dirs::home_dir().unwrap().join(CONFIG_DIR);
+    if !config_dir.exists() {
+        fs::create_dir_all(&config_dir).unwrap();
+    } else if !config_dir.is_dir() {
+        panic!("{} is not a directory", config_dir.to_string_lossy());
+    }
+
+    let state_file = config_dir.join(STATE_FILE);
+    if let Ok(text) = fs::read_to_string(&state_file) {
+        if let Ok(state) = serde_json::from_str::<State>(&text) {
+            *STATE.lock().unwrap() = state;
+            info!("successfully loaded saved state");
+        }
+    }
+}
+
+fn save_state() {
+    let state_file = dirs::home_dir().unwrap().join(CONFIG_DIR).join(STATE_FILE);
+    let state = serde_json::to_string_pretty(&*STATE.lock().unwrap()).unwrap();
+    if fs::write(&state_file, state).is_ok() {
+        info!("successfully saved state");
+    } else {
+        warn!("failed to save state");
+    }
+}
+
 fn main() -> anyhow::Result<()> {
     env_logger::builder()
         .filter_module("pedoni", log::LevelFilter::Info)
         .init();
+
+    load_state();
 
     let scenario = fs::read_to_string("scenarios/default.toml")?;
     let scenario: Scenario = toml::from_str(&scenario)?;
@@ -104,6 +137,8 @@ fn main() -> anyhow::Result<()> {
         Box::new(|cc| Ok(Box::new(Renderer::new(cc)))),
     )
     .unwrap();
+
+    save_state();
 
     Ok(())
 }

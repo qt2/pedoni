@@ -61,6 +61,11 @@ impl eframe::App for Renderer {
                         }
                         ui.close_menu();
                     }
+
+                    if ui.add(egui::Button::new("Save control state")).clicked() {
+                        crate::save_state();
+                        ui.close_menu();
+                    }
                 });
 
                 ui.menu_button("View", |ui| {
