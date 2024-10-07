@@ -3,6 +3,7 @@ pub mod simulator;
 
 use std::{
     fs::{self},
+    path::{Path, PathBuf},
     sync::{Mutex, RwLock},
     thread,
     time::{Duration, Instant},
@@ -21,6 +22,7 @@ use crate::{
 static SIMULATOR: Lazy<RwLock<Simulator>> =
     Lazy::new(|| RwLock::new(Simulator::with_scenario(Scenario::default())));
 static STATE: Mutex<State> = Mutex::new(State {
+    scenario_path: None,
     paused: true,
     replay_requested: false,
     delta_time: 0.1,
@@ -32,6 +34,7 @@ static DIAGNOSTIC: Lazy<Mutex<Diagnostic>> = Lazy::new(|| Mutex::new(Diagnostic:
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct State {
+    pub scenario_path: Option<PathBuf>,
     pub paused: bool,
     pub replay_requested: bool,
     pub delta_time: f64,
@@ -43,7 +46,7 @@ pub struct State {
 const CONFIG_DIR: &str = ".pedoni";
 const STATE_FILE: &str = "state.json";
 
-fn load_state() {
+pub fn load_state() {
     let config_dir = dirs::home_dir().unwrap().join(CONFIG_DIR);
     if !config_dir.exists() {
         fs::create_dir_all(&config_dir).unwrap();
@@ -54,13 +57,16 @@ fn load_state() {
     let state_file = config_dir.join(STATE_FILE);
     if let Ok(text) = fs::read_to_string(&state_file) {
         if let Ok(state) = serde_json::from_str::<State>(&text) {
+            if let Some(ref path) = state.scenario_path {
+                load_scenario(path).ok();
+            }
             *STATE.lock().unwrap() = state;
             info!("successfully loaded saved state");
         }
     }
 }
 
-fn save_state() {
+pub fn save_state() {
     let state_file = dirs::home_dir().unwrap().join(CONFIG_DIR).join(STATE_FILE);
     let state = serde_json::to_string_pretty(&*STATE.lock().unwrap()).unwrap();
     if fs::write(&state_file, state).is_ok() {
@@ -70,22 +76,25 @@ fn save_state() {
     }
 }
 
+pub fn load_scenario(path: impl AsRef<Path>) -> anyhow::Result<()> {
+    let scenario = fs::read_to_string(&path)?;
+    let scenario: Scenario = toml::from_str(&scenario)?;
+    {
+        let mut simulator = SIMULATOR.write().unwrap();
+        *simulator = Simulator::with_scenario(scenario);
+    }
+    STATE.lock().unwrap().scenario_path = path.as_ref().canonicalize().ok();
+    info!("successfully loaded a scenario: {:?}", path.as_ref());
+
+    Ok(())
+}
+
 fn main() -> anyhow::Result<()> {
     env_logger::builder()
         .filter_module("pedoni", log::LevelFilter::Info)
         .init();
 
     load_state();
-
-    let scenario = fs::read_to_string("scenarios/default.toml")?;
-    let scenario: Scenario = toml::from_str(&scenario)?;
-
-    {
-        let mut simulator = SIMULATOR.write().unwrap();
-        *simulator = Simulator::with_scenario(scenario);
-    }
-
-    info!("successfully loaded a scenario");
 
     thread::spawn(move || loop {
         let start = Instant::now();

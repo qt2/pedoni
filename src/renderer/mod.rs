@@ -13,7 +13,7 @@ use fill::Instance;
 use glam::vec2;
 use log::info;
 
-use crate::{DIAGNOSTIC, SIMULATOR, STATE};
+use crate::{load_scenario, DIAGNOSTIC, SIMULATOR, STATE};
 
 const COLORS: &[[u8; 4]] = &[
     [255, 0, 0, 255],
@@ -57,7 +57,8 @@ impl eframe::App for Renderer {
                         .clicked()
                     {
                         if let Some(path) = rfd::FileDialog::new().pick_file() {
-                            info!("Loading scenario: {}", path.to_string_lossy());
+                            info!("Loading scenario: {:?}", &path);
+                            load_scenario(&path).ok();
                         }
                         ui.close_menu();
                     }
