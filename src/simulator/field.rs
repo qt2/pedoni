@@ -119,13 +119,13 @@ fn apply_fmm(potentials: &mut Array2<f32>, obstacle_exist: &Array2<bool>) {
 
                 for (j, i) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
                     let ix = ix.add(i, j);
-                    if let Some(state) = states.get_mut(ix) {
-                        if *state != Accepted {
+                    match states.get_mut(ix) {
+                        None | Some(Accepted) => {}
+                        Some(state) => {
+                            *state = Considered;
                             let u = if obstacle_exist[ix] { F_OBS } else { F_DEF };
-
                             potentials[ix] = u;
                             queue.push((float(u), ix));
-                            states[ix] = Considered;
                         }
                     }
                 }
