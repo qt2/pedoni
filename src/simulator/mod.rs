@@ -102,8 +102,8 @@ impl Simulator {
             {
                 let ix = (pedestrian.pos / neighbor_grid_unit).ceil().as_ivec2();
                 let ix = Index::new(ix.x, ix.y);
-                if ix.is_inside(shape) {
-                    grid[ix].push(i as u32);
+                if let Some(neighbors) = grid.get_mut(ix) {
+                    neighbors.push(i as u32);
                     belong[i] = ix;
                 }
             }
@@ -204,8 +204,8 @@ impl Simulator {
             for j in -1..=1 {
                 for i in -1..=1 {
                     let ix = ix.add(i, j);
-                    if ix.is_inside(grid.dim()) {
-                        for &id in grid[ix].iter().filter(|i| **i != pedestrian_id as u32) {
+                    if let Some(neighbors) = grid.get(ix) {
+                        for &id in neighbors.iter().filter(|i| **i != pedestrian_id as u32) {
                             let delta = (position - self.pedestrians[id as usize].pos).length();
                             potential += potential_ped_from_distance(delta);
                         }

@@ -50,11 +50,6 @@ impl FieldBuilder {
         let grid = rasterizer.finish();
 
         self.obstacle_exist.zip_mut_with(&grid, |a, b| *a |= b);
-        // self.obstacle_map.zip_mut_with(&grid, |map, exist| {
-        //     if *exist {
-        //         map.push(index as u32)
-        //     }
-        // });
     }
 
     fn add_waypoint(&mut self, waypoint: &WaypointConfig) {
@@ -124,12 +119,14 @@ fn apply_fmm(potentials: &mut Array2<f32>, obstacle_exist: &Array2<bool>) {
 
                 for (j, i) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
                     let ix = ix.add(i, j);
-                    if ix.is_inside(shape) && states[ix] != Accepted {
-                        let u = if obstacle_exist[ix] { F_OBS } else { F_DEF };
+                    if let Some(state) = states.get_mut(ix) {
+                        if *state != Accepted {
+                            let u = if obstacle_exist[ix] { F_OBS } else { F_DEF };
 
-                        potentials[ix] = u;
-                        queue.push((float(u), ix));
-                        states[ix] = Considered;
+                            potentials[ix] = u;
+                            queue.push((float(u), ix));
+                            states[ix] = Considered;
+                        }
                     }
                 }
             }
@@ -146,10 +143,10 @@ fn apply_fmm(potentials: &mut Array2<f32>, obstacle_exist: &Array2<bool>) {
         for (j, i) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
             let ix = ix.add(i, j);
 
-            if !ix.is_inside(shape) || states[ix] == Accepted {
-                continue;
+            match states.get_mut(ix) {
+                None | Some(Accepted) => continue,
+                Some(state) => *state = Considered,
             }
-            states[ix] = Considered;
 
             let f = if obstacle_exist[ix] { F_OBS } else { F_DEF };
 
@@ -191,8 +188,6 @@ pub struct Field {
     pub shape: (usize, usize),
     /// Boolean grid which holds obstacle existence
     pub obstacle_exist: Array2<bool>,
-    // /// Vector grid indicating which obstacles each cell overlaps
-    // pub obstacle_map: Array2<ThinVec<u32>>,
     /// Potential against each waypoint
     pub potentials: Vec<Array2<f32>>,
 }
@@ -203,7 +198,6 @@ impl Default for Field {
             unit: 0.5,
             shape: (0, 0),
             obstacle_exist: Default::default(),
-            // obstacle_map: Default::default(),
             potentials: Vec::default(),
         }
     }

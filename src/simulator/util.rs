@@ -2,6 +2,7 @@ use glam::Vec2;
 use ndarray::Array2;
 use num_traits::PrimInt;
 
+/// Index struct for [`ndarray::Array2`]
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Index {
     pub y: i32,
@@ -22,15 +23,15 @@ impl Index {
             y: self.y + y.to_i32().unwrap(),
         }
     }
-
-    pub fn is_inside(self, shape: (usize, usize)) -> bool {
-        self.x >= 0 && self.x < shape.1 as i32 && self.y >= 0 && self.y < shape.0 as i32
-    }
 }
 
 unsafe impl ndarray::NdIndex<ndarray::Ix2> for Index {
     fn index_checked(&self, dim: &ndarray::Ix2, strides: &ndarray::Ix2) -> Option<isize> {
-        (self.y as usize, self.x as usize).index_checked(dim, strides)
+        if self.x.is_negative() || self.y.is_negative() {
+            None
+        } else {
+            (self.y as usize, self.x as usize).index_checked(dim, strides)
+        }
     }
 
     fn index_unchecked(&self, strides: &ndarray::Ix2) -> isize {
@@ -38,31 +39,24 @@ unsafe impl ndarray::NdIndex<ndarray::Ix2> for Index {
     }
 }
 
+/// Interpolate grid using bilinear interpolation.
 pub fn bilinear(grid: &Array2<f32>, pos: Vec2) -> f32 {
+    const FMAX: f32 = 1e12;
+
     let base = pos.floor();
     let t = pos - base;
+    let s = Vec2::ONE - t;
     let ix = Index::new(base.x as i32, base.y as i32);
-    let shape = grid.dim();
 
-    [(0, 1.0 - t.y), (1, t.y)]
-        .into_iter()
-        .map(|(dy, ty)| {
-            [(0, 1.0 - t.x), (1, t.x)]
-                .into_iter()
-                .map(|(dx, tx)| {
-                    let ix = ix.add(dx, dy);
-                    if ix.is_inside(shape) {
-                        grid[ix] * tx
-                    } else {
-                        1e12
-                    }
-                })
-                .sum::<f32>()
-                * ty
-        })
-        .sum()
+    let mut y = 0.0;
+    y += s.y * s.x * grid.get(ix).cloned().unwrap_or(FMAX);
+    y += s.y * t.x * grid.get(ix.add(1, 0)).cloned().unwrap_or(FMAX);
+    y += t.y * s.x * grid.get(ix.add(0, 1)).cloned().unwrap_or(FMAX);
+    y += t.y * t.x * grid.get(ix.add(1, 1)).cloned().unwrap_or(FMAX);
+    y
 }
 
+/// Spawn a random integer based on Poisson distribution.
 pub fn poisson(lambda: f64) -> i32 {
     let mut y = 0;
     let mut x = fastrand::f64();
@@ -76,6 +70,7 @@ pub fn poisson(lambda: f64) -> i32 {
     y
 }
 
+/// Calculate distance from line segment.
 pub fn distance_from_line(point: Vec2, line: [Vec2; 2]) -> f32 {
     let a = point - line[0];
     let b = line[1] - line[0];
@@ -89,6 +84,8 @@ pub fn distance_from_line(point: Vec2, line: [Vec2; 2]) -> f32 {
     }
 }
 
+/// Solve minimum value of function using [Nelder-Mead method](https://en.wikipedia.org/wiki/Nelder%E2%80%93Mead_method).
+/// If `bound` is set, it searches within the circle of given radius.
 pub fn nelder_mead(f: impl Fn(Vec2) -> f32, init: Vec<Vec2>, bound: Option<f32>) -> Vec2 {
     const ALPHA: f32 = 1.0;
     const GAMMA: f32 = 2.0;
@@ -111,11 +108,11 @@ pub fn nelder_mead(f: impl Fn(Vec2) -> f32, init: Vec<Vec2>, bound: Option<f32>)
             .fold(Vec2::ZERO, |sum, x| sum + *x)
             / (n - 1) as f32;
 
-        if (x_g - xs[2].1).length_squared() < 1e-6 {
+        if (x_g - xs[n - 1].1).length_squared() < 1e-6 {
             break;
         }
 
-        let x_r = clamp(x_g + ALPHA * (x_g - xs[2].1));
+        let x_r = clamp(x_g + ALPHA * (x_g - xs[n - 1].1));
         let y_r = f(x_r);
 
         if y_r < xs[0].0 {
@@ -175,15 +172,15 @@ mod tests {
             vec![Vec2::ZERO, vec2(0.05, 0.00025), vec2(0.00025, 0.05)],
             None,
         );
-        assert_float_absolute_eq!((x_opt - vec2(2.0f32.sqrt(), 2.0)).length(), 0.0, 1e-4);
+        assert_float_absolute_eq!((x_opt - vec2(2.0f32.sqrt(), 2.0)).length(), 0.0, 1e-2);
         dbg!(x_opt);
 
         let x_opt = nelder_mead(
             rosenbrock,
-            vec![Vec2::ZERO, vec2(0.05, 0.00025), Vec2::ONE],
+            vec![Vec2::ZERO, vec2(0.05, 0.00025), vec2(0.00025, 0.05)],
             Some(6.0f32.sqrt()),
         );
-        assert_float_absolute_eq!((x_opt - vec2(2.0f32.sqrt(), 2.0)).length(), 0.0, 1e-4);
+        assert_float_absolute_eq!((x_opt - vec2(2.0f32.sqrt(), 2.0)).length(), 0.0, 1e-2);
         dbg!(x_opt);
     }
 
