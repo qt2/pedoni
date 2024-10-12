@@ -5,47 +5,13 @@ use geo::Line;
 use geo_rasterize::{BinaryBuilder, LabelBuilder};
 use glam::Vec2;
 use ndarray::Array2;
-use num_traits::PrimInt;
 use ordered_float::NotNan;
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
-use super::scenario::{ObstacleConfig, Scenario, WaypointConfig};
-
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Index {
-    pub y: i32,
-    pub x: i32,
-}
-
-impl Index {
-    pub fn new<T: PrimInt>(x: T, y: T) -> Self {
-        Index {
-            x: x.to_i32().unwrap(),
-            y: y.to_i32().unwrap(),
-        }
-    }
-
-    pub fn add<T: PrimInt>(self, x: T, y: T) -> Self {
-        Index {
-            x: self.x + x.to_i32().unwrap(),
-            y: self.y + y.to_i32().unwrap(),
-        }
-    }
-
-    pub fn is_inside(self, shape: (usize, usize)) -> bool {
-        self.x >= 0 && self.x < shape.1 as i32 && self.y >= 0 && self.y < shape.0 as i32
-    }
-}
-
-unsafe impl ndarray::NdIndex<ndarray::Ix2> for Index {
-    fn index_checked(&self, dim: &ndarray::Ix2, strides: &ndarray::Ix2) -> Option<isize> {
-        (self.y as usize, self.x as usize).index_checked(dim, strides)
-    }
-
-    fn index_unchecked(&self, strides: &ndarray::Ix2) -> isize {
-        (self.y as usize, self.x as usize).index_unchecked(strides)
-    }
-}
+use super::{
+    scenario::{ObstacleConfig, Scenario, WaypointConfig},
+    util::{self, Index},
+};
 
 pub struct FieldBuilder {
     unit: f32,
@@ -260,29 +226,9 @@ impl Field {
 
     pub fn get_potential(&self, waypoint_id: usize, position: Vec2) -> f32 {
         let position = position / self.unit - Vec2::splat(0.5);
-        let base = position.floor();
-        let t = position - base;
-        let b = base.as_ivec2();
 
         let potential = &self.potentials[waypoint_id];
-        let shape = potential.shape();
-
-        [(0, t.y), (1, 1.0 - t.y)]
-            .iter()
-            .map(|(dy, ty)| {
-                [(0, t.x), (1, 1.0 - t.x)]
-                    .iter()
-                    .map(|(dx, tx)| {
-                        let (x, y) = (b.x + dx, b.y + dy);
-                        if y < 0 || y >= shape[0] as i32 || x < 0 || x >= shape[1] as i32 {
-                            return 1e24;
-                        }
-                        potential[(y as usize, x as usize)] * tx
-                    })
-                    .sum::<f32>()
-                    * ty
-            })
-            .sum()
+        util::bilinear(potential, position)
     }
 }
 

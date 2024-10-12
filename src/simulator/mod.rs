@@ -3,19 +3,18 @@ pub mod field;
 pub mod scenario;
 pub mod util;
 
-use std::f32::consts::PI;
-
 use crate::{
     renderer::{fill::Instance, DrawCommand},
     State, STATE,
 };
-use field::{Field, Index};
+use field::Field;
 use glam::{vec2, Vec2};
 use ndarray::Array2;
-use ordered_float::NotNan;
+
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use scenario::Scenario;
 use thin_vec::ThinVec;
+use util::Index;
 
 /// Simulator instance
 #[derive(Default)]
@@ -116,7 +115,6 @@ impl Simulator {
     }
 
     pub fn calc_next_state(&self) -> Vec<(Vec2, bool)> {
-        const Q: i32 = 16;
         const R: f32 = 0.5;
 
         self.pedestrians
@@ -126,18 +124,27 @@ impl Simulator {
             .map(|(i, ped)| {
                 let active = self.field.get_potential(ped.destination, ped.pos) > 2.0;
 
-                let position = (0..Q)
-                    .map(|k| {
-                        let phi = 2.0 * PI / Q as f32 * (k as f32 + fastrand::f32());
-                        let x_k = ped.pos + R * vec2(phi.cos(), phi.sin());
+                // const Q: i32 = 16;
 
-                        let p = self.get_potential(i, ped.destination, x_k);
+                // let (potential, position) = (0..Q)
+                //     .map(|k| {
+                //         let phi = 2.0 * PI / Q as f32 * (k as f32 + fastrand::f32());
+                //         let x_k = ped.pos + R * vec2(phi.cos(), phi.sin());
 
-                        (NotNan::new(p).unwrap(), x_k)
-                    })
-                    .min_by_key(|t| t.0)
-                    .unwrap()
-                    .1;
+                //         let p = self.get_potential(i, ped.destination, x_k);
+
+                //         (NotNan::new(p).unwrap(), x_k)
+                //     })
+                //     .min_by_key(|t| t.0)
+                //     .unwrap();
+
+                let f = |x: Vec2| self.get_potential(i, ped.destination, ped.pos + x);
+
+                let position = util::nelder_mead(
+                    f,
+                    vec![Vec2::ZERO, vec2(0.05, 0.00025), vec2(0.00025, 0.05)],
+                    Some(R),
+                ) + ped.pos;
 
                 (position, active)
             })
