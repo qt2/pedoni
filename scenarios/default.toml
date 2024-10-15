@@ -9,9 +9,11 @@ line = [[90, 90], [90, 100]]
 
 [[obstacles]]
 line = [[0, 30], [80, 30]]
+width = 10
 
 [[obstacles]]
 line = [[20, 70], [100, 70]]
+width = 10
 
 [[pedestrians]]
 origin = 0

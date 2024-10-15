@@ -1,6 +1,10 @@
 use glam::Vec2;
 use serde::Deserialize;
 
+const fn f_one() -> f32 {
+    1.0
+}
+
 /// Scenario data
 #[derive(Debug, Default, Clone, Deserialize)]
 pub struct Scenario {
@@ -15,14 +19,36 @@ pub struct FieldConfig {
     pub size: Vec2,
 }
 
-#[derive(Debug, Default, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct ObstacleConfig {
     pub line: [Vec2; 2],
+    #[serde(default = "f_one")]
+    pub width: f32,
 }
 
-#[derive(Debug, Default, Clone, Deserialize)]
+impl Default for ObstacleConfig {
+    fn default() -> Self {
+        ObstacleConfig {
+            line: Default::default(),
+            width: 1.0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct WaypointConfig {
     pub line: [Vec2; 2],
+    #[serde(default = "f_one")]
+    pub width: f32,
+}
+
+impl Default for WaypointConfig {
+    fn default() -> Self {
+        WaypointConfig {
+            line: Default::default(),
+            width: 1.0,
+        }
+    }
 }
 
 #[derive(Debug, Default, Clone, Deserialize)]

@@ -11,7 +11,7 @@ use eframe::{
 use egui_extras::Column;
 use fill::Instance;
 use glam::vec2;
-use log::info;
+use log::{error, info};
 
 use crate::{load_scenario, DIAGNOSTIC, SIMULATOR, STATE};
 
@@ -58,7 +58,9 @@ impl eframe::App for Renderer {
                     {
                         if let Some(path) = rfd::FileDialog::new().pick_file() {
                             info!("Loading scenario: {:?}", &path);
-                            load_scenario(&path).ok();
+                            if let Err(err) = load_scenario(&path) {
+                                error!("Failed to load scenario: {path:?}\n{err:?}");
+                            }
                         }
                         ui.close_menu();
                     }

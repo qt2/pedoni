@@ -1,7 +1,7 @@
 use core::f32;
 use std::{cmp::Reverse, collections::BinaryHeap};
 
-use geo::Line;
+use geo::LineString;
 use geo_rasterize::{BinaryBuilder, LabelBuilder};
 use glam::Vec2;
 use ndarray::Array2;
@@ -35,11 +35,16 @@ impl FieldBuilder {
     }
 
     fn add_obstacle(&mut self, obstacle: &ObstacleConfig) {
-        let line = obstacle.line;
-        let shape = Line::from(line.map(|v| {
-            let v = v / self.unit;
-            (v.x, v.y)
-        }));
+        let vertices = util::line_with_width(obstacle.line, obstacle.width);
+        let shape = LineString::from(
+            vertices
+                .into_iter()
+                .map(|v| {
+                    let v = v / self.unit;
+                    (v.x, v.y)
+                })
+                .collect::<Vec<_>>(),
+        );
 
         let mut rasterizer = BinaryBuilder::new()
             .width(self.shape.1)
@@ -53,11 +58,16 @@ impl FieldBuilder {
     }
 
     fn add_waypoint(&mut self, waypoint: &WaypointConfig) {
-        let line = waypoint.line;
-        let shape = Line::from(line.map(|v| {
-            let v = v / self.unit;
-            (v.x, v.y)
-        }));
+        let vertices = util::line_with_width(waypoint.line, waypoint.width);
+        let shape = LineString::from(
+            vertices
+                .into_iter()
+                .map(|v| {
+                    let v = v / self.unit;
+                    (v.x, v.y)
+                })
+                .collect::<Vec<_>>(),
+        );
 
         let mut rasterizer = LabelBuilder::background(f32::MAX)
             .width(self.shape.1)
@@ -78,8 +88,12 @@ impl FieldBuilder {
             mut potentials,
         } = self;
 
+        let mut slowness = obstacle_exist.map(|&obs| if obs { 0.0 } else { f32::MAX });
+        apply_fmm(&mut slowness, &Array2::ones(shape));
+        slowness.map_inplace(|d| *d = 1e4 * (-10.0 * *d).exp() + 1.0);
+
         potentials.par_iter_mut().for_each(|potential| {
-            apply_fmm(potential, &obstacle_exist);
+            apply_fmm(potential, &slowness);
         });
 
         Field {
@@ -92,7 +106,7 @@ impl FieldBuilder {
 }
 
 /// Calculate potential against a waypoint using Sethian's [fast marching method](https://en.wikipedia.org/wiki/Fast_marching_method).    
-fn apply_fmm(potentials: &mut Array2<f32>, obstacle_exist: &Array2<bool>) {
+fn apply_fmm(potentials: &mut Array2<f32>, f: &Array2<f32>) {
     use Status::*;
     type Float = Reverse<NotNan<f32>>;
 
@@ -103,16 +117,16 @@ fn apply_fmm(potentials: &mut Array2<f32>, obstacle_exist: &Array2<bool>) {
         Accepted,
     }
 
-    const F_DEF: f32 = 1.0;
-    const F_OBS: f32 = 1e4;
+    // const F_DEF: f32 = 1.0;
+    // const F_OBS: f32 = 1e4;
 
     let shape = potentials.dim();
     let mut states = Array2::from_elem(shape, Status::Far);
     let mut queue = BinaryHeap::<(Float, Index)>::new();
     let float = |x: f32| Reverse(NotNan::new(x).unwrap());
 
-    for y in 0..shape.1 {
-        for x in 0..shape.0 {
+    for y in 0..shape.0 {
+        for x in 0..shape.1 {
             let ix = Index::new(x, y);
             if potentials[ix] == 0.0 {
                 states[ix] = Accepted;
@@ -122,8 +136,11 @@ fn apply_fmm(potentials: &mut Array2<f32>, obstacle_exist: &Array2<bool>) {
                     match states.get_mut(ix) {
                         None | Some(Accepted) => {}
                         Some(state) => {
+                            if potentials[ix] == 0.0 {
+                                continue;
+                            }
                             *state = Considered;
-                            let u = if obstacle_exist[ix] { F_OBS } else { F_DEF };
+                            let u = f[ix];
                             potentials[ix] = u;
                             queue.push((float(u), ix));
                         }
@@ -148,8 +165,7 @@ fn apply_fmm(potentials: &mut Array2<f32>, obstacle_exist: &Array2<bool>) {
                 Some(state) => *state = Considered,
             }
 
-            let f = if obstacle_exist[ix] { F_OBS } else { F_DEF };
-
+            let f = f[ix];
             let (u1, u2) = if j == 0 {
                 let u2a = potentials.get(ix.add(0, -1)).cloned().unwrap_or(f32::MAX);
                 let u2b = potentials.get(ix.add(0, 1)).cloned().unwrap_or(f32::MAX);
@@ -261,13 +277,16 @@ mod tests {
             obstacles: vec![
                 ObstacleConfig {
                     line: [vec2(0.0, 1.5), vec2(4.0, 1.5)],
+                    ..Default::default()
                 },
                 ObstacleConfig {
                     line: [vec2(1.0, 3.5), vec2(5.0, 3.5)],
+                    ..Default::default()
                 },
             ],
             waypoints: vec![WaypointConfig {
                 line: [vec2(0.0, 0.0), vec2(0.0, 1.0)],
+                ..Default::default()
             }],
             ..Default::default()
         };

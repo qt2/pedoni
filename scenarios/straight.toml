@@ -2,18 +2,25 @@
 size = [20, 10]
 
 [[waypoints]]
-line = [[5, 4], [5, 6]]
+line = [[6, 4.2], [6, 5.8]]
 
 [[waypoints]]
-line = [[15, 4], [15, 6]]
+line = [[14, 4.2], [14, 5.8]]
 
 [[obstacles]]
 line = [[5, 4], [15, 4]]
+width = 0.3
 
 [[obstacles]]
 line = [[5, 6], [15, 6]]
+width = 0.3
 
 [[pedestrians]]
 origin = 0
 destination = 1
+spawn = { kind = "periodic", frequency = 2.0 }
+
+[[pedestrians]]
+origin = 1
+destination = 0
 spawn = { kind = "periodic", frequency = 2.0 }

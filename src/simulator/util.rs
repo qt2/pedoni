@@ -1,4 +1,4 @@
-use glam::Vec2;
+use glam::{vec2, Vec2};
 use ndarray::Array2;
 use num_traits::PrimInt;
 
@@ -82,6 +82,14 @@ pub fn distance_from_line(point: Vec2, line: [Vec2; 2]) -> f32 {
         let t = (a.dot(b) / b_len2).max(0.0).min(1.0);
         (t * b - a).length()
     }
+}
+
+/// Calculate coordinates of vertices of line with given width.
+pub fn line_with_width(line: [Vec2; 2], width: f32) -> Vec<Vec2> {
+    let a = (line[1] - line[0]).normalize();
+    let b = vec2(a.y, -a.x) * 0.5 * width;
+
+    vec![line[0] - b, line[0] + b, line[1] + b, line[1] - b]
 }
 
 /// Solve minimum value of function using [Nelder-Mead method](https://en.wikipedia.org/wiki/Nelder%E2%80%93Mead_method).

@@ -47,7 +47,7 @@ impl Instance {
 impl Instance {
     pub fn point(position: Vec2, color: [u8; 4]) -> Self {
         Instance {
-            matrix2: Mat2::IDENTITY,
+            matrix2: Mat2::IDENTITY * 0.5,
             translation: position,
             color,
         }

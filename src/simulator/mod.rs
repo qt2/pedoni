@@ -47,12 +47,14 @@ impl Simulator {
         let obs_instances = scenario
             .obstacles
             .iter()
-            .map(|obstacle| Instance::line_segment(obstacle.line, 1.0, [255, 255, 255, 64]))
+            .map(|obstacle| {
+                Instance::line_segment(obstacle.line, obstacle.width, [255, 255, 255, 64])
+            })
             .collect();
         let wp_instances = scenario
             .waypoints
             .iter()
-            .map(|wp| Instance::line_segment(wp.line, 1.0, [255, 255, 0, 255]))
+            .map(|wp| Instance::line_segment(wp.line, wp.width, [255, 255, 0, 255]))
             .collect();
 
         vec![
@@ -115,7 +117,7 @@ impl Simulator {
     }
 
     pub fn calc_next_state(&self) -> Vec<(Vec2, bool)> {
-        const R: f32 = 0.5;
+        const R: f32 = 0.3;
 
         self.pedestrians
             .par_iter()
@@ -183,7 +185,7 @@ impl Simulator {
 
         let p_field = 0.2 * self.field.get_potential(waypoint_id, position);
 
-        if p_field < 4.0 {
+        if p_field < 1.0 {
             return p_field;
         }
 
