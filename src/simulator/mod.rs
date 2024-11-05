@@ -4,8 +4,9 @@ pub mod scenario;
 pub mod util;
 
 use crate::{
-    renderer::{fill::Instance, DrawCommand},
-    State, STATE,
+    // renderer::{fill::Instance, DrawCommand},
+    State,
+    STATE,
 };
 use field::Field;
 use glam::{vec2, Vec2};
@@ -22,7 +23,7 @@ pub struct Simulator {
     pub scenario: Scenario,
     pub field: Field,
     pub pedestrians: Vec<Pedestrian>,
-    pub static_draw_commands: Vec<DrawCommand>,
+    // pub static_draw_commands: Vec<DrawCommand>,
     pub neighbor_grid: Option<Array2<ThinVec<u32>>>,
     pub neighbor_grid_belong: Option<Vec<Index>>,
 }
@@ -31,43 +32,43 @@ impl Simulator {
     /// Create new simulator instance with scenario
     pub fn with_scenario(scenario: Scenario) -> Self {
         let field = Field::from_scenario(&scenario);
-        let static_draw_commands = Self::create_static_draw_commands(&scenario);
+        // let static_draw_commands = Self::create_static_draw_commands(&scenario);
 
         Simulator {
             scenario,
             field,
             pedestrians: vec![],
-            static_draw_commands,
+            // static_draw_commands,
             neighbor_grid: None,
             neighbor_grid_belong: None,
         }
     }
 
-    fn create_static_draw_commands(scenario: &Scenario) -> Vec<DrawCommand> {
-        let obs_instances = scenario
-            .obstacles
-            .iter()
-            .map(|obstacle| {
-                Instance::line_segment(obstacle.line, obstacle.width, [255, 255, 255, 64])
-            })
-            .collect();
-        let wp_instances = scenario
-            .waypoints
-            .iter()
-            .map(|wp| Instance::line_segment(wp.line, wp.width, [255, 255, 0, 255]))
-            .collect();
+    // fn create_static_draw_commands(scenario: &Scenario) -> Vec<DrawCommand> {
+    //     let obs_instances = scenario
+    //         .obstacles
+    //         .iter()
+    //         .map(|obstacle| {
+    //             Instance::line_segment(obstacle.line, obstacle.width, [255, 255, 255, 64])
+    //         })
+    //         .collect();
+    //     let wp_instances = scenario
+    //         .waypoints
+    //         .iter()
+    //         .map(|wp| Instance::line_segment(wp.line, wp.width, [255, 255, 0, 255]))
+    //         .collect();
 
-        vec![
-            DrawCommand {
-                mesh_id: 4,
-                instances: obs_instances,
-            },
-            DrawCommand {
-                mesh_id: 4,
-                instances: wp_instances,
-            },
-        ]
-    }
+    //     vec![
+    //         DrawCommand {
+    //             mesh_id: 4,
+    //             instances: obs_instances,
+    //         },
+    //         DrawCommand {
+    //             mesh_id: 4,
+    //             instances: wp_instances,
+    //         },
+    //     ]
+    // }
 
     pub fn spawn_pedestrians(&mut self) {
         for pedestrian in self.scenario.pedestrians.iter() {

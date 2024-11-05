@@ -1,17 +1,7 @@
-mod callback;
-pub mod camera;
-pub mod fill;
-
-pub use callback::{DrawCommand, RenderCallback, RenderResources};
-use camera::{Camera, View};
-use eframe::{
-    egui::{self, Modifiers, RichText},
-    wgpu,
-};
+use eframe::egui::{self, Modifiers, RichText};
 use egui_extras::Column;
-use fill::Instance;
-use glam::vec2;
 use log::{error, info};
+use pittore_egui::prelude::*;
 
 use crate::{load_scenario, DIAGNOSTIC, SIMULATOR, STATE};
 
@@ -24,17 +14,92 @@ const COLORS: &[[u8; 4]] = &[
     [0, 255, 255, 255],
 ];
 
-#[derive(Debug)]
+struct Camera2d {
+    position: Vec2,
+    scale: f32,
+}
+
+impl Default for Camera2d {
+    fn default() -> Self {
+        Camera2d {
+            position: Vec2::ZERO,
+            scale: 8.0,
+        }
+    }
+}
+
+#[derive(Default)]
+pub struct FieldCanvas {
+    camera: Camera2d,
+}
+
+impl FieldCanvas {
+    fn apply_camera_transform(
+        &mut self,
+        ctx: &egui::Context,
+        response: &egui::Response,
+        size: egui::Vec2,
+    ) {
+        let camera = &mut self.camera;
+
+        if let Some(mouse_pos) = response.hover_pos() {
+            let delta_wheel_y = ctx.input(|i| i.smooth_scroll_delta).y;
+
+            if delta_wheel_y != 0.0 {
+                let d = mouse_pos - size / 2.0;
+                let d = vec2(d.x, -d.y) / camera.scale;
+                let scale_mul = 2.0_f32.powf(delta_wheel_y * 0.01);
+                camera.scale *= scale_mul;
+                camera.position += d * (1.0 - scale_mul.recip());
+            }
+        }
+
+        // let dpi = ctx.native_pixels_per_point().unwrap_or_default();
+        let delta_drag = response.drag_delta() / camera.scale; // double it to follow wgpu's coordinate system
+
+        camera.position.x -= delta_drag.x;
+        camera.position.y += delta_drag.y;
+    }
+}
+
+impl PittoreApp for FieldCanvas {
+    fn update(&mut self, ctx: &mut pittore_egui::prelude::Context) {
+        ctx.add_layer(|c| {
+            c.add_camera(Camera::new_2d(self.camera.position, self.camera.scale));
+
+            {
+                let simulator = SIMULATOR.read().unwrap();
+
+                let pedestrians = simulator
+                    .pedestrians
+                    .iter()
+                    .filter(|ped| ped.active)
+                    .map(|ped| Rect {
+                        position: ped.pos,
+                        scale: Vec2::splat(0.4),
+                        color: COLORS[ped.destination % COLORS.len()],
+                        ..Default::default()
+                    })
+                    .collect();
+
+                c.draw_rects(pedestrians);
+            }
+        });
+    }
+}
+
 pub struct Renderer {
-    camera: Camera,
+    field_canvas: PittoreCanvas<FieldCanvas>,
     show_controller: bool,
     show_diagnostic: bool,
 }
 
-impl Default for Renderer {
-    fn default() -> Self {
-        Self {
-            camera: Default::default(),
+impl Renderer {
+    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        let field_canvas = PittoreCanvas::new(cc, FieldCanvas::default());
+
+        Renderer {
+            field_canvas,
             show_controller: true,
             show_diagnostic: true,
         }
@@ -131,7 +196,12 @@ impl eframe::App for Renderer {
                 egui::Frame::canvas(ui.style())
                     .rounding(0.0)
                     .show(ui, |ui| {
-                        self.draw_canvas(ui, ctx);
+                        let size = ui.available_size();
+                        let (rect, response) = ui.allocate_exact_size(size, egui::Sense::drag());
+
+                        let canvas = &mut self.field_canvas;
+                        canvas.apply_camera_transform(ctx, &response, size);
+                        canvas.show(ui, rect);
                     });
             });
 
@@ -235,80 +305,4 @@ impl eframe::App for Renderer {
             }
         }
     }
-}
-
-impl Renderer {
-    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        let render_state = cc.wgpu_render_state.as_ref().unwrap();
-        let render_resources = RenderResources::new(render_state);
-        let resoureces = &mut render_state.renderer.write().callback_resources;
-        resoureces.insert(render_resources);
-
-        // cc.egui_ctx.all_styles_mut(|style| {
-        //     *style
-        //         .text_styles
-        //         .get_mut(&egui::TextStyle::Heading)
-        //         .unwrap() = style.text_styles[&egui::TextStyle::Body].clone();
-        // });
-
-        Renderer::default()
-    }
-
-    pub fn draw_canvas(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
-        let size = ui.available_size();
-        let (rect, response) = ui.allocate_exact_size(size, egui::Sense::drag());
-
-        let camera = &mut self.camera;
-        camera.size = glam::vec2(size.x, size.y);
-
-        if let Some(mouse_pos) = response.hover_pos() {
-            let delta_wheel_y = ctx.input(|i| i.smooth_scroll_delta).y;
-
-            if delta_wheel_y != 0.0 {
-                let d = mouse_pos - size / 2.0;
-                let d = vec2(d.x, -d.y) / camera.scale;
-                let scale_mul = 2.0_f32.powf(delta_wheel_y * 0.01);
-                camera.scale *= scale_mul;
-                camera.position += d * (1.0 - scale_mul.recip());
-            }
-        }
-
-        // let dpi = ctx.native_pixels_per_point().unwrap_or_default();
-        let delta_drag = response.drag_delta() / camera.scale; // double it for matching wgpu's coordinate system
-
-        camera.position.x -= delta_drag.x;
-        camera.position.y += delta_drag.y;
-
-        let commands = {
-            let simulator = SIMULATOR.read().unwrap();
-
-            let mut commands = simulator.static_draw_commands.clone();
-
-            let instances = simulator
-                .pedestrians
-                .iter()
-                .filter(|ped| ped.active)
-                .map(|ped| Instance::point(ped.pos, COLORS[ped.destination % COLORS.len()]))
-                .collect();
-            commands.push(DrawCommand {
-                mesh_id: 4,
-                instances,
-            });
-
-            commands
-        };
-
-        ui.painter().add(egui_wgpu::Callback::new_paint_callback(
-            rect,
-            RenderCallback {
-                view: View::from(&self.camera),
-                commands,
-            },
-        ));
-    }
-}
-
-pub struct PipelineSet {
-    pub pipeline_layout: wgpu::PipelineLayout,
-    pub pipeline: wgpu::RenderPipeline,
 }
