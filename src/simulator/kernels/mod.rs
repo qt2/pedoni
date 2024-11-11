@@ -1,14 +1,19 @@
 use eframe::wgpu;
 
+#[repr(C)]
+#[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct DPedestrian {}
 
+#[repr(C)]
+#[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct DState {}
 
 pub struct OSMKernel {
     pipeline: wgpu::ComputePipeline,
     pedestrian_buffer: wgpu::Buffer,
-    staging_buffer: wgpu::Buffer,
-    bind_group_layout: wgpu::BindGroupLayout,
+    state_buffer: wgpu::Buffer,
+    output_buffer: wgpu::Buffer,
+    // bind_group_layout: wgpu::BindGroupLayout,
     bind_group: wgpu::BindGroup,
 }
 
@@ -22,33 +27,19 @@ impl OSMKernel {
             size: 128 * 65536,
             mapped_at_creation: false,
         });
-        let staging_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("staging_buffer"),
-            usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
+        let state_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("state_buffer"),
+            usage: wgpu::BufferUsages::STORAGE
+                | wgpu::BufferUsages::COPY_SRC
+                | wgpu::BufferUsages::COPY_DST,
             size: 64 * 65536,
             mapped_at_creation: false,
         });
-
-        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("pedestrian_bind_group_layout"),
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only: true },
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }],
-        });
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("pedestrian_bind_group"),
-            layout: &bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: pedestrian_buffer.as_entire_binding(),
-            }],
+        let output_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("output_buffer"),
+            usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
+            size: state_buffer.size(),
+            mapped_at_creation: false,
         });
 
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
@@ -60,18 +51,41 @@ impl OSMKernel {
             cache: None,
         });
 
+        // let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        //     label: Some("pedestrian_bind_group_layout"),
+        //     entries: &[wgpu::BindGroupLayoutEntry {
+        //         binding: 0,
+        //         visibility: wgpu::ShaderStages::COMPUTE,
+        //         ty: wgpu::BindingType::Buffer {
+        //             ty: wgpu::BufferBindingType::Storage { read_only: true },
+        //             has_dynamic_offset: false,
+        //             min_binding_size: None,
+        //         },
+        //         count: None,
+        //     }],
+        // });
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("pedestrian_bind_group"),
+            layout: &pipeline.get_bind_group_layout(0),
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: pedestrian_buffer.as_entire_binding(),
+            }],
+        });
+
         OSMKernel {
             pipeline,
             pedestrian_buffer,
-            staging_buffer,
-            bind_group_layout,
+            state_buffer,
+            output_buffer,
+            // bind_group_layout,
             bind_group,
         }
     }
 
     pub fn prepare(&self, device: &wgpu::Device, queue: &wgpu::Queue) {}
 
-    pub fn execute(&self, device: &wgpu::Device, queue: &wgpu::Queue) {
+    pub async fn execute(&self, device: &wgpu::Device, queue: &wgpu::Queue) {
         let mut encoder =
             device.create_command_encoder(&{ wgpu::CommandEncoderDescriptor::default() });
         {
@@ -81,6 +95,27 @@ impl OSMKernel {
             pass.insert_debug_marker("compute_pedestrian");
             pass.dispatch_workgroups(128, 1, 1);
         }
-        queue.submit([encoder.finish()]);
+        encoder.copy_buffer_to_buffer(
+            &self.state_buffer,
+            0,
+            &self.output_buffer,
+            0,
+            self.state_buffer.size(),
+        );
+
+        queue.submit(Some(encoder.finish()));
+
+        let output_slice = self.output_buffer.slice(..);
+        let (tx, rx) = flume::bounded(1);
+        output_slice.map_async(wgpu::MapMode::Read, move |v| tx.send(v).unwrap());
+
+        device.poll(wgpu::Maintain::wait()).panic_on_timeout();
+
+        if let Ok(Ok(())) = rx.recv_async().await {
+            let data = output_slice.get_mapped_range();
+            let states: Vec<DState> = bytemuck::cast_slice(&data).to_vec();
+            drop(data);
+            self.output_buffer.unmap();
+        }
     }
 }
