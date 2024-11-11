@@ -2809,7 +2809,7 @@ dependencies = [
  "num-traits",
  "once_cell",
  "ordered-float",
- "pittore-egui",
+ "pittore",
  "rayon",
  "rfd",
  "rustc-hash 2.0.0",
@@ -2869,24 +2869,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "pittore-core"
+name = "pittore"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d7f33900e9836902479e44b5d429e99263e964ed6869971511fc2d0c093618d4"
 dependencies = [
  "bytemuck",
+ "eframe",
+ "egui-wgpu",
  "etagere",
  "glam",
  "image",
  "rustc-hash 2.0.0",
  "wgpu",
-]
-
-[[package]]
-name = "pittore-egui"
-version = "0.1.0"
-dependencies = [
- "eframe",
- "egui-wgpu",
- "pittore-core",
 ]
 
 [[package]]

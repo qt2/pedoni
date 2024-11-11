@@ -1,17 +1,17 @@
 use eframe::egui::{self, Modifiers, RichText};
 use egui_extras::Column;
 use log::{error, info};
-use pittore_egui::prelude::*;
+use pittore::prelude::*;
 
 use crate::{load_scenario, DIAGNOSTIC, SIMULATOR, STATE};
 
-const COLORS: &[[u8; 4]] = &[
-    [255, 0, 0, 255],
-    [0, 0, 255, 255],
-    [0, 255, 0, 255],
-    [255, 0, 255, 255],
-    [255, 255, 0, 255],
-    [0, 255, 255, 255],
+const COLORS: &[Color] = &[
+    Color::RED,
+    Color::BLUE,
+    Color::GREEN,
+    Color::YELLOW,
+    Color::from_rgb(255, 0, 255),
+    Color::from_rgb(255, 255, 0),
 ];
 
 struct Camera2d {
@@ -34,13 +34,9 @@ pub struct FieldCanvas {
 }
 
 impl FieldCanvas {
-    fn apply_camera_transform(
-        &mut self,
-        ctx: &egui::Context,
-        response: &egui::Response,
-        size: egui::Vec2,
-    ) {
+    fn apply_camera_transform(&mut self, ctx: &egui::Context, response: &egui::Response) {
         let camera = &mut self.camera;
+        let size = response.intrinsic_size.unwrap();
 
         if let Some(mouse_pos) = response.hover_pos() {
             let delta_wheel_y = ctx.input(|i| i.smooth_scroll_delta).y;
@@ -63,25 +59,52 @@ impl FieldCanvas {
 }
 
 impl PittoreApp for FieldCanvas {
-    fn update(&mut self, ctx: &mut pittore_egui::prelude::Context) {
+    fn update(&mut self, ctx: &mut pittore::Context) {
+        self.apply_camera_transform(ctx.egui_context, &ctx.egui_response);
+
         ctx.add_layer(|c| {
             c.add_camera(Camera::new_2d(self.camera.position, self.camera.scale));
 
             {
                 let simulator = SIMULATOR.read().unwrap();
 
+                let obstacles = simulator
+                    .scenario
+                    .obstacles
+                    .iter()
+                    .map(|obs| Line {
+                        start: obs.line[0],
+                        end: obs.line[1],
+                        width: obs.width,
+                        color: Color::GRAY,
+                    })
+                    .collect();
+                c.draw_lines(obstacles);
+
+                let waypoints = simulator
+                    .scenario
+                    .waypoints
+                    .iter()
+                    .map(|wp| Line {
+                        start: wp.line[0],
+                        end: wp.line[1],
+                        width: 0.25,
+                        color: Color::YELLOW,
+                    })
+                    .collect();
+                c.draw_lines(waypoints);
+
                 let pedestrians = simulator
                     .pedestrians
                     .iter()
                     .filter(|ped| ped.active)
-                    .map(|ped| Rect {
+                    .map(|ped| Object {
                         position: ped.pos,
                         scale: Vec2::splat(0.4),
                         color: COLORS[ped.destination % COLORS.len()],
                         ..Default::default()
                     })
                     .collect();
-
                 c.draw_rects(pedestrians);
             }
         });
@@ -196,12 +219,7 @@ impl eframe::App for Renderer {
                 egui::Frame::canvas(ui.style())
                     .rounding(0.0)
                     .show(ui, |ui| {
-                        let size = ui.available_size();
-                        let (rect, response) = ui.allocate_exact_size(size, egui::Sense::drag());
-
-                        let canvas = &mut self.field_canvas;
-                        canvas.apply_camera_transform(ctx, &response, size);
-                        canvas.show(ui, rect);
+                        self.field_canvas.show(ctx, ui);
                     });
             });
 
