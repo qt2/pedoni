@@ -1,5 +1,6 @@
 pub mod diagnostic;
 pub mod field;
+mod kernels;
 pub mod scenario;
 pub mod util;
 
