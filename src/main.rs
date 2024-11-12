@@ -95,6 +95,11 @@ fn main() -> anyhow::Result<()> {
 
     load_state();
 
+    let headless = std::env::args()
+        .skip(1)
+        .next()
+        .is_some_and(|arg| &arg == "headless");
+
     thread::spawn(move || loop {
         let start = Instant::now();
         let state = STATE.lock().unwrap().clone();
@@ -121,12 +126,14 @@ fn main() -> anyhow::Result<()> {
             };
             let time_apply_state = time_apply_state.elapsed().as_secs_f64();
 
-            let mut diagnostic = DIAGNOSTIC.lock().unwrap();
-            diagnostic.push(DiagnosticMetrics {
+            let metrics = DiagnosticMetrics {
                 active_ped_count,
                 time_calc_state,
                 time_apply_state,
-            });
+            };
+            info!("{:?}", metrics);
+            let mut diagnostic = DIAGNOSTIC.lock().unwrap();
+            diagnostic.push(metrics);
         }
 
         let calc_time = Instant::now() - start;
@@ -135,6 +142,15 @@ fn main() -> anyhow::Result<()> {
             thread::sleep(min_interval - calc_time);
         }
     });
+
+    if headless {
+        info!("Run as headless mode");
+        STATE.lock().unwrap().paused = false;
+
+        loop {
+            thread::sleep(Duration::from_secs(1));
+        }
+    }
 
     let options = eframe::NativeOptions {
         viewport: eframe::egui::ViewportBuilder::default().with_inner_size([960.0, 720.0]),

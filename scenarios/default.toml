@@ -18,9 +18,9 @@ width = 10
 [[pedestrians]]
 origin = 0
 destination = 1
-spawn = { kind = "periodic", frequency = 20.0 }
+spawn = { kind = "periodic", frequency = 200.0 }
 
 [[pedestrians]]
 origin = 1
 destination = 0
-spawn = { kind = "periodic", frequency = 10.0 }
+spawn = { kind = "periodic", frequency = 100.0 }
