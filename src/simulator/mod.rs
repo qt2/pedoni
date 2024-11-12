@@ -24,20 +24,16 @@ pub struct Simulator {
     pub model: OptimalStepsModelGpu,
     pub neighbor_grid: Option<Array2<ThinVec<u32>>>,
     pub neighbor_grid_belong: Option<Vec<Index>>,
-    pub wgpu_resources: WgpuResources,
 }
 
 impl Simulator {
     pub fn new() -> Self {
-        let wgpu_resources = pollster::block_on(WgpuResources::new());
-
         Simulator {
             scenario: Scenario::default(),
             field: Field::default(),
-            model: OptimalStepsModelGpu::new(wgpu_resources.clone()),
+            model: OptimalStepsModelGpu::new(),
             neighbor_grid: None,
             neighbor_grid_belong: None,
-            wgpu_resources,
         }
     }
 
@@ -114,30 +110,5 @@ impl Simulator {
 
     pub fn get_pedestrian_count(&self) -> i32 {
         self.model.get_pedestrian_count()
-    }
-}
-
-#[derive(Clone)]
-pub struct WgpuResources {
-    pub device: Arc<wgpu::Device>,
-    pub queue: Arc<wgpu::Queue>,
-}
-
-impl WgpuResources {
-    pub async fn new() -> Self {
-        let instance = wgpu::Instance::default();
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions::default())
-            .await
-            .unwrap();
-        let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor::default(), None)
-            .await
-            .unwrap();
-
-        WgpuResources {
-            device: Arc::new(device),
-            queue: Arc::new(queue),
-        }
     }
 }

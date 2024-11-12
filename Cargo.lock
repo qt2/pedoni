@@ -116,7 +116,7 @@ checksum = "4f209f0bc218ee6cf50db56ec0d9fe10b3cbfb6f3900d019b36c8fdb6d3bc03e"
 dependencies = [
  "cfg-if",
  "ieee754",
- "num-traits",
+ "num-traits 0.2.19",
 ]
 
 [[package]]
@@ -250,7 +250,7 @@ version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cab112f0a86d568ea0e627cc1d6be74a1e9cd55214684db5561995f6dad897c6"
 dependencies = [
- "num-traits",
+ "num-traits 0.2.19",
 ]
 
 [[package]]
@@ -796,6 +796,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "cl-sys"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4febd824a957638c066180fbf72b2bed5bcee33740773f3dc59fe91f0a3e6595"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "clap"
 version = "4.5.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -979,6 +988,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "crossbeam"
+version = "0.8.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1137cd7e7fc0fb5d3c5a8678be38ec56e819125d8d7907411fe24ccb943faca8"
+dependencies = [
+ "crossbeam-channel",
+ "crossbeam-deque",
+ "crossbeam-epoch",
+ "crossbeam-queue",
+ "crossbeam-utils",
+]
+
+[[package]]
+name = "crossbeam-channel"
+version = "0.5.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "33480d6946193aa8033910124896ca395333cae7e2d1113d1fef6c3272217df2"
+dependencies = [
+ "crossbeam-utils",
+]
+
+[[package]]
 name = "crossbeam-deque"
 version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -993,6 +1024,15 @@ name = "crossbeam-epoch"
 version = "0.9.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b82ac4a3c2ca9c3460964f020e1402edd5753411d7737aa39c3714ad1b5420e"
+dependencies = [
+ "crossbeam-utils",
+]
+
+[[package]]
+name = "crossbeam-queue"
+version = "0.3.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "df0346b5d5e76ac2fe4e327c5fd1118d6be7c51dfb18f9b7922923f287471e35"
 dependencies = [
  "crossbeam-utils",
 ]
@@ -1115,7 +1155,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "79127ed59a85d7687c409e9978547cffb7dc79675355ed22da6b66fd5f6ead01"
 dependencies = [
  "itertools 0.11.0",
- "num-traits",
+ "num-traits 0.2.19",
 ]
 
 [[package]]
@@ -1289,6 +1329,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "enum_primitive"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "be4551092f4d519593039259a9ed8daedf0da12e5109c5280338073eaeb81180"
+dependencies = [
+ "num-traits 0.1.43",
+]
+
+[[package]]
 name = "enumflags2"
 version = "0.7.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1393,7 +1442,7 @@ version = "0.22.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ad9cdb4b747e485a12abb0e6566612956c7a1bafa3bdb8d682c5b6d403589e48"
 dependencies = [
- "num-traits",
+ "num-traits 0.2.19",
 ]
 
 [[package]]
@@ -1532,6 +1581,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "futures"
+version = "0.1.31"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3a471a38ef8ed83cd6e40aa59c1ffe17db6855c18e3604d9c4ed8c08ebc28678"
+
+[[package]]
 name = "futures-channel"
 version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1657,7 +1712,7 @@ dependencies = [
  "geo-types",
  "geographiclib-rs",
  "log",
- "num-traits",
+ "num-traits 0.2.19",
  "robust 0.2.3",
  "rstar 0.8.4",
 ]
@@ -1673,7 +1728,7 @@ dependencies = [
  "geo-types",
  "geographiclib-rs",
  "log",
- "num-traits",
+ "num-traits 0.2.19",
  "robust 1.1.0",
  "rstar 0.12.0",
  "spade",
@@ -1689,7 +1744,7 @@ dependencies = [
  "geo 0.18.0",
  "itertools 0.10.5",
  "ndarray",
- "num-traits",
+ "num-traits 0.2.19",
  "thiserror",
 ]
 
@@ -1700,7 +1755,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ff16065e5720f376fbced200a5ae0f47ace85fd70b7e54269790281353b6d61"
 dependencies = [
  "approx",
- "num-traits",
+ "num-traits 0.2.19",
  "rstar 0.12.0",
  "rstar 0.8.4",
  "serde",
@@ -2042,7 +2097,7 @@ checksum = "bc144d44a31d753b02ce64093d532f55ff8dc4ebf2ffb8a63c0dda691385acae"
 dependencies = [
  "bytemuck",
  "byteorder-lite",
- "num-traits",
+ "num-traits 0.2.19",
  "png",
  "zune-core",
  "zune-jpeg",
@@ -2383,7 +2438,7 @@ dependencies = [
  "matrixmultiply",
  "num-complex",
  "num-integer",
- "num-traits",
+ "num-traits 0.2.19",
  "rawpointer",
 ]
 
@@ -2452,6 +2507,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "nodrop"
+version = "0.1.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72ef4a56884ca558e5ddb05a1d1e7e1bfd9a68d9ed024c21704cc98872dae1bb"
+
+[[package]]
 name = "nohash-hasher"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2463,7 +2524,7 @@ version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "73f88a1307638156682bada9d7604135552957b7818057dcef22705b4d509495"
 dependencies = [
- "num-traits",
+ "num-traits 0.2.19",
 ]
 
 [[package]]
@@ -2472,7 +2533,16 @@ version = "0.1.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7969661fd2958a5cb096e56c8e1ad0444ac2bbcd0061bd28660485a44879858f"
 dependencies = [
- "num-traits",
+ "num-traits 0.2.19",
+]
+
+[[package]]
+name = "num-traits"
+version = "0.1.43"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "92e5113e9fd4cc14ded8e499429f396a20f98c772a47cc8622a736e1ec843c31"
+dependencies = [
+ "num-traits 0.2.19",
 ]
 
 [[package]]
@@ -2719,6 +2789,45 @@ dependencies = [
 ]
 
 [[package]]
+name = "ocl"
+version = "0.19.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4297afb442d411793e4e24ee5a2977d15b6c95c743418f1c0ce0a2397d7ec8a3"
+dependencies = [
+ "futures",
+ "nodrop",
+ "num-traits 0.2.19",
+ "ocl-core",
+ "qutex",
+ "thiserror",
+]
+
+[[package]]
+name = "ocl-core"
+version = "0.11.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c145dd9f205b86611a5df15eb89517417b03005441cf6cec245c65a4b9248c52"
+dependencies = [
+ "bitflags 1.3.2",
+ "cl-sys",
+ "enum_primitive",
+ "num-complex",
+ "num-traits 0.2.19",
+ "ocl-core-vector",
+ "rustc_version",
+ "thiserror",
+]
+
+[[package]]
+name = "ocl-core-vector"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f562279e046ca160aeed5eaf6f7c4eb9fa56cb8fd9d038dbdbf56225caeb8074"
+dependencies = [
+ "num-traits 0.2.19",
+]
+
+[[package]]
 name = "once_cell"
 version = "1.20.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2745,7 +2854,7 @@ version = "4.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "44d501f1a72f71d3c063a6bbc8f7271fa73aa09fe5d6283b6571e2ed176a2537"
 dependencies = [
- "num-traits",
+ "num-traits 0.2.19",
 ]
 
 [[package]]
@@ -2830,7 +2939,8 @@ dependencies = [
  "image",
  "log",
  "ndarray",
- "num-traits",
+ "num-traits 0.2.19",
+ "ocl",
  "once_cell",
  "ordered-float",
  "pittore",
@@ -3039,6 +3149,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "qutex"
+version = "0.2.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "11778238e7d8b0e3ca62033fdc69e01ef5cdb08809cdc2398b2ce5ec873a1757"
+dependencies = [
+ "crossbeam",
+ "futures",
+]
+
+[[package]]
 name = "rand"
 version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3211,7 +3331,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3a45c0e8804d37e4d97e55c6f258bc9ad9c5ee7b07437009dd152d764949a27c"
 dependencies = [
  "heapless 0.6.1",
- "num-traits",
+ "num-traits 0.2.19",
  "pdqselect",
  "smallvec",
 ]
@@ -3223,7 +3343,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "133315eb94c7b1e8d0cb097e5a710d850263372fd028fff18969de708afc7008"
 dependencies = [
  "heapless 0.8.0",
- "num-traits",
+ "num-traits 0.2.19",
  "smallvec",
 ]
 
@@ -3238,6 +3358,15 @@ name = "rustc-hash"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "583034fd73374156e66797ed8e5b0d5690409c9226b22d87cb7f19821c05d152"
+
+[[package]]
+name = "rustc_version"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cfcb3a22ef46e85b45de6ee7e79d063319ebb6594faafcf1c225ea92ab6e9b92"
+dependencies = [
+ "semver",
+]
 
 [[package]]
 name = "rustix"
@@ -3305,6 +3434,12 @@ dependencies = [
  "smithay-client-toolkit",
  "tiny-skia",
 ]
+
+[[package]]
+name = "semver"
+version = "1.0.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "61697e0a1c7e512e84a621326239844a24d8207b4669b41bc18b32ea5cbf988b"
 
 [[package]]
 name = "serde"
@@ -3476,7 +3611,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "93f5ef1f863aca7d1d7dda7ccfc36a0a4279bd6d3c375176e5e0712e25cb4889"
 dependencies = [
  "hashbrown 0.14.5",
- "num-traits",
+ "num-traits 0.2.19",
  "robust 1.1.0",
  "smallvec",
 ]
