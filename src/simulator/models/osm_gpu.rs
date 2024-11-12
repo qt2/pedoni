@@ -1,6 +1,9 @@
 use eframe::wgpu;
 use glam::{vec2, Vec2};
-use ocl::{prm::Float2, ProQue};
+use ocl::{
+    prm::{Float16, Float2, Float4, Uint16, Uint2},
+    ProQue,
+};
 
 use crate::simulator::Simulator;
 
@@ -30,6 +33,33 @@ impl OptimalStepsModelGpu {
             .iter()
             .map(|p| p.pos.to_array().into())
             .collect();
+        let destinations: Vec<u32> = self
+            .pedestrians
+            .iter()
+            .map(|p| p.destination as u32)
+            .collect();
+        let waypoints: Vec<Float4> = sim
+            .scenario
+            .waypoints
+            .iter()
+            .map(|wp| Float4::new(wp.line[0].x, wp.line[0].y, wp.line[1].x, wp.line[1].y))
+            .collect();
+        let neighbor_grid: Vec<Uint16> = sim
+            .neighbor_grid
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|neighbors| {
+                let mut item = [0u32; 16];
+                for i in 0..16.min(neighbors.len()) {
+                    item[i] = neighbors[i];
+                }
+                item.into()
+            })
+            .collect();
+        let neighbor_grid_shape = sim.neighbor_grid.as_ref().unwrap().shape();
+        let neighbor_grid_shape = [neighbor_grid_shape[0] as u32, neighbor_grid_shape[1] as u32];
+        let neighbor_grid_unit = sim.neighbor_grid_unit.unwrap();
 
         let pq = &self.pq;
         let dim = self.pedestrians.len();
@@ -38,16 +68,28 @@ impl OptimalStepsModelGpu {
             return Ok(Vec::new());
         }
 
-        let position_buffer = pq
+        let position_buffer = pq.buffer_builder().copy_host_slice(&positions).build()?;
+        let destination_buffer = pq.buffer_builder().copy_host_slice(&destinations).build()?;
+        let waypoint_buffer = pq
             .buffer_builder()
-            .len(dim)
-            .copy_host_slice(&positions)
+            .len(waypoints.len())
+            .copy_host_slice(&waypoints)
             .build()?;
-        let next_position_buffer = pq.buffer_builder().len(dim).build()?;
+        let neighbor_grid_buffer = pq
+            .buffer_builder()
+            .len(neighbor_grid.len())
+            .copy_host_slice(&neighbor_grid)
+            .build()?;
+        let next_position_buffer = pq.buffer_builder().build()?;
 
         let kernel = pq
             .kernel_builder("calc_next_state")
             .arg(&position_buffer)
+            .arg(&destination_buffer)
+            .arg(&waypoint_buffer)
+            .arg(&neighbor_grid_buffer)
+            .arg(&Uint2::from(neighbor_grid_shape))
+            .arg(&neighbor_grid_unit)
             .arg(&next_position_buffer)
             .build()?;
 

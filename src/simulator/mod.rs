@@ -24,6 +24,7 @@ pub struct Simulator {
     pub model: OptimalStepsModelGpu,
     pub neighbor_grid: Option<Array2<ThinVec<u32>>>,
     pub neighbor_grid_belong: Option<Vec<Index>>,
+    pub neighbor_grid_unit: Option<f32>,
 }
 
 impl Simulator {
@@ -34,6 +35,7 @@ impl Simulator {
             model: OptimalStepsModelGpu::new(),
             neighbor_grid: None,
             neighbor_grid_belong: None,
+            neighbor_grid_unit: None,
         }
     }
 
@@ -46,6 +48,7 @@ impl Simulator {
         // self.model = OptimalStepsModelGpu::new();
         self.neighbor_grid = None;
         self.neighbor_grid_belong = None;
+        self.neighbor_grid_unit = None;
     }
 
     pub fn spawn_pedestrians(&mut self) {
@@ -75,7 +78,11 @@ impl Simulator {
             ..
         } = *STATE.lock().unwrap();
 
-        (self.neighbor_grid, self.neighbor_grid_belong) = if use_neighbor_grid {
+        (
+            self.neighbor_grid,
+            self.neighbor_grid_belong,
+            self.neighbor_grid_unit,
+        ) = if use_neighbor_grid {
             let shape = (self.scenario.field.size / neighbor_grid_unit).ceil();
             let shape = (shape.y as usize, shape.x as usize);
             let mut grid = Array2::from_elem(shape, ThinVec::new());
@@ -90,9 +97,9 @@ impl Simulator {
                 }
             }
 
-            (Some(grid), Some(belong))
+            (Some(grid), Some(belong), Some(neighbor_grid_unit))
         } else {
-            (None, None)
+            (None, None, None)
         };
     }
 
