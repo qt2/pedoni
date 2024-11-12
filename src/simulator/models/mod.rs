@@ -1,27 +1,36 @@
+mod osm;
+
 use std::any::Any;
 
 use glam::Vec2;
+use ndarray::Array2;
+use thin_vec::ThinVec;
 
-use super::field::Field;
+use super::{field::Field, scenario::Scenario, util::Index, Simulator};
 
-mod osm;
+pub use osm::OptimalStepsModel;
 
 pub trait PedestrianModel {
-    fn spawn_pedestrians(&mut self);
+    fn spawn_pedestrians(&mut self, pedestrians: Vec<Pedestrian>);
 
-    fn calc_next_state(&self, env: Environment) -> Box<dyn Any>;
+    fn calc_next_state(&self, sim: &Simulator) -> Box<dyn Any>;
 
     fn apply_next_state(&mut self, next_state: Box<dyn Any>);
 
-    fn list_pedestrians(&self) -> Vec<f32>;
+    fn list_pedestrians(&self) -> Vec<Pedestrian>;
+
+    fn get_pedestrian_count(&self) -> i32;
 }
 
-pub struct Environment<'a> {
-    field: &'a Field,
-}
+// pub struct Environment<'a> {
+//     pub scenario: &'a Scenario,
+//     pub field: &'a Field,
+//     pub neighbor_grid: &'a Option<Array2<ThinVec<u32>>>,
+//     pub neighbor_grid_belong: &'a Option<Vec<Index>>,
+// }
 
 /// Pedestrian instance
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Pedestrian {
     pub active: bool,
     pub pos: Vec2,

@@ -106,12 +106,15 @@ fn main() -> anyhow::Result<()> {
                 simulator.spawn_pedestrians();
             }
 
-            let (time_calc_state, next_state) = {
+            let (time_calc_state, next_state, active_ped_count) = {
                 let simulator = SIMULATOR.read().unwrap();
-                (Instant::now(), simulator.calc_next_state())
+                (
+                    Instant::now(),
+                    simulator.calc_next_state(),
+                    simulator.get_pedestrian_count(),
+                )
             };
             let time_calc_state = time_calc_state.elapsed().as_secs_f64();
-            let active_ped_count = next_state.len() as i32;
 
             let (time_apply_state, _) = {
                 let mut simulator = SIMULATOR.write().unwrap();

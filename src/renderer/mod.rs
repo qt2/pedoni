@@ -95,7 +95,7 @@ impl PittoreApp for FieldCanvas {
                 c.draw_lines(waypoints);
 
                 let pedestrians = simulator
-                    .pedestrians
+                    .list_pedestrians()
                     .iter()
                     .filter(|ped| ped.active)
                     .map(|ped| Object {
