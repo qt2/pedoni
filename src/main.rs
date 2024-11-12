@@ -19,8 +19,7 @@ use crate::{
     simulator::{scenario::Scenario, Simulator},
 };
 
-static SIMULATOR: Lazy<RwLock<Simulator>> =
-    Lazy::new(|| RwLock::new(Simulator::with_scenario(Scenario::default())));
+static SIMULATOR: Lazy<RwLock<Simulator>> = Lazy::new(|| RwLock::new(Simulator::new()));
 static STATE: Mutex<State> = Mutex::new(State {
     scenario_path: None,
     paused: true,
@@ -81,7 +80,7 @@ pub fn load_scenario(path: impl AsRef<Path>) -> anyhow::Result<()> {
     let scenario: Scenario = toml::from_str(&scenario)?;
     {
         let mut simulator = SIMULATOR.write().unwrap();
-        *simulator = Simulator::with_scenario(scenario);
+        simulator.load_scenario(scenario);
     }
     STATE.lock().unwrap().scenario_path = path.as_ref().canonicalize().ok();
     info!("successfully loaded a scenario: {:?}", path.as_ref());

@@ -1,21 +1,16 @@
 pub mod diagnostic;
 pub mod field;
-mod kernels;
 mod models;
 pub mod optim;
 pub mod scenario;
 pub mod util;
 
-use std::any::Any;
+use std::{any::Any, sync::Arc};
 
-use crate::{
-    // renderer::{fill::Instance, DrawCommand},
-    State,
-    STATE,
-};
+use crate::{State, STATE};
+use eframe::wgpu;
 use field::Field;
-use glam::{vec2, Vec2};
-use models::{OptimalStepsModel, Pedestrian, PedestrianModel};
+use models::{OptimalStepsModel, OptimalStepsModelGpu, Pedestrian, PedestrianModel};
 use ndarray::Array2;
 
 use scenario::Scenario;
@@ -23,29 +18,38 @@ use thin_vec::ThinVec;
 use util::Index;
 
 /// Simulator instance
-#[derive(Default)]
 pub struct Simulator {
     pub scenario: Scenario,
     pub field: Field,
-    // pub pedestrians: Vec<Pedestrian>,
-    pub model: OptimalStepsModel,
+    pub model: OptimalStepsModelGpu,
     pub neighbor_grid: Option<Array2<ThinVec<u32>>>,
     pub neighbor_grid_belong: Option<Vec<Index>>,
+    pub wgpu_resources: WgpuResources,
 }
 
 impl Simulator {
-    /// Create new simulator instance with scenario
-    pub fn with_scenario(scenario: Scenario) -> Self {
-        let field = Field::from_scenario(&scenario);
+    pub fn new() -> Self {
+        let wgpu_resources = pollster::block_on(WgpuResources::new());
 
         Simulator {
-            scenario,
-            field,
-            // pedestrians: vec![],
-            model: OptimalStepsModel::new(),
+            scenario: Scenario::default(),
+            field: Field::default(),
+            model: OptimalStepsModelGpu::new(wgpu_resources.clone()),
             neighbor_grid: None,
             neighbor_grid_belong: None,
+            wgpu_resources,
         }
+    }
+
+    /// Create new simulator instance with scenario
+    pub fn load_scenario(&mut self, scenario: Scenario) {
+        let field = Field::from_scenario(&scenario);
+
+        self.scenario = scenario;
+        self.field = field;
+        // self.model = OptimalStepsModelGpu::new();
+        self.neighbor_grid = None;
+        self.neighbor_grid_belong = None;
     }
 
     pub fn spawn_pedestrians(&mut self) {
@@ -98,38 +102,10 @@ impl Simulator {
 
     pub fn calc_next_state(&self) -> Box<dyn Any> {
         self.model.calc_next_state(self)
-        // const R: f32 = 0.3;
-
-        // self.pedestrians
-        //     .par_iter()
-        //     .enumerate()
-        //     .filter(|(_, ped)| ped.active)
-        //     .map(|(i, ped)| {
-        //         let active = self.field.get_potential(ped.destination, ped.pos) > 2.0;
-
-        //         let f = |x: Vec2| self.get_potential(i, ped.destination, ped.pos + x);
-
-        //         let position = util::nelder_mead(
-        //             f,
-        //             vec![Vec2::ZERO, vec2(0.05, 0.00025), vec2(0.00025, 0.05)],
-        //             Some(R),
-        //         ) + ped.pos;
-
-        //         (position, active)
-        //     })
-        //     .collect()
     }
 
     pub fn apply_next_state(&mut self, state: Box<dyn Any>) {
         self.model.apply_next_state(state);
-        // self.pedestrians
-        //     .iter_mut()
-        //     .filter(|ped| ped.active)
-        //     .zip(state)
-        //     .for_each(|(ped, (pos, active))| {
-        //         ped.pos = pos;
-        //         ped.active = active;
-        //     });
     }
 
     pub fn list_pedestrians(&self) -> Vec<Pedestrian> {
@@ -139,86 +115,29 @@ impl Simulator {
     pub fn get_pedestrian_count(&self) -> i32 {
         self.model.get_pedestrian_count()
     }
+}
 
-    // fn get_potential(&self, pedestrian_id: usize, waypoint_id: usize, position: Vec2) -> f32 {
-    //     /// Pedestrian torso
-    //     const G_P: f32 = 0.4;
-    //     const G_P_HALF: f32 = G_P / 2.0;
+#[derive(Clone)]
+pub struct WgpuResources {
+    pub device: Arc<wgpu::Device>,
+    pub queue: Arc<wgpu::Queue>,
+}
 
-    //     // Parameters on pedestrians
-    //     const MU_P: f32 = 1000.0;
-    //     const NU_P: f32 = 0.4;
-    //     const A_P: f32 = 1.0;
-    //     const B_P: f32 = 0.2;
-    //     const H_P: f32 = 1.0;
+impl WgpuResources {
+    pub async fn new() -> Self {
+        let instance = wgpu::Instance::default();
+        let adapter = instance
+            .request_adapter(&wgpu::RequestAdapterOptions::default())
+            .await
+            .unwrap();
+        let (device, queue) = adapter
+            .request_device(&wgpu::DeviceDescriptor::default(), None)
+            .await
+            .unwrap();
 
-    //     // Parameters on obstacles
-    //     const MU_O: f32 = 10000.0;
-    //     const NU_O: f32 = 0.2;
-    //     const A_O: f32 = 3.0;
-    //     const B_O: f32 = 2.0;
-    //     const H_O: f32 = 6.0;
-
-    //     let p_field = 0.2 * self.field.get_potential(waypoint_id, position);
-
-    //     if p_field < 1.0 {
-    //         return p_field;
-    //     }
-
-    //     let potential_ped_from_distance = |delta: f32| {
-    //         if delta > G_P + H_P {
-    //             0.0
-    //         } else if delta <= G_P {
-    //             MU_P
-    //         } else {
-    //             NU_P * (-A_P * delta.powf(B_P)).exp()
-    //         }
-    //     };
-
-    //     let p_pedestrians = if let Some(ref grid) = self.neighbor_grid {
-    //         let ix = self.neighbor_grid_belong.as_ref().unwrap()[pedestrian_id];
-    //         let mut potential = 0.0;
-
-    //         for j in -1..=1 {
-    //             for i in -1..=1 {
-    //                 let ix = ix.add(i, j);
-    //                 if let Some(neighbors) = grid.get(ix) {
-    //                     for &id in neighbors.iter().filter(|i| **i != pedestrian_id as u32) {
-    //                         let delta = (position - self.pedestrians[id as usize].pos).length();
-    //                         potential += potential_ped_from_distance(delta);
-    //                     }
-    //                 }
-    //             }
-    //         }
-
-    //         potential
-    //     } else {
-    //         self.pedestrians
-    //             .iter()
-    //             .take(pedestrian_id)
-    //             .chain(self.pedestrians.iter().skip(pedestrian_id + 1))
-    //             .map(|ped| {
-    //                 let delta = (position - ped.pos).length();
-    //                 potential_ped_from_distance(delta)
-    //             })
-    //             .sum()
-    //     };
-    //     let p_obstacles: f32 = self
-    //         .scenario
-    //         .obstacles
-    //         .iter()
-    //         .map(|obs| {
-    //             let delta = util::distance_from_line(position, obs.line);
-    //             if delta > H_O {
-    //                 0.0
-    //             } else if delta < G_P_HALF {
-    //                 MU_O
-    //             } else {
-    //                 NU_O * (-A_O * delta.powf(B_O)).exp()
-    //             }
-    //         })
-    //         .sum();
-
-    //     p_field + p_pedestrians + p_obstacles
-    // }
+        WgpuResources {
+            device: Arc::new(device),
+            queue: Arc::new(queue),
+        }
+    }
 }

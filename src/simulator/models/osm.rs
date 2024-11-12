@@ -1,7 +1,4 @@
-use std::f32::consts::PI;
-
 use glam::{vec2, Vec2};
-use ordered_float::NotNan;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
 use crate::simulator::{
@@ -167,18 +164,4 @@ impl PedestrianModel for OptimalStepsModel {
     fn get_pedestrian_count(&self) -> i32 {
         self.pedestrians.len() as i32
     }
-}
-
-pub fn optimize_around_circle(f: impl Fn(Vec2) -> f32, r: f32) -> (Vec2, f32) {
-    const Q: i32 = 16;
-
-    (0..Q)
-        .map(|k| {
-            let phi = 2.0 * PI / Q as f32 * (k as f32 + fastrand::f32());
-            let x = r * vec2(phi.cos(), phi.sin());
-            let y = f(x);
-            (x, y)
-        })
-        .min_by_key(|t| NotNan::new(t.1).unwrap())
-        .unwrap()
 }

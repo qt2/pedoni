@@ -1,14 +1,13 @@
 mod osm;
+mod osm_gpu;
 
 use std::any::Any;
 
 use glam::Vec2;
-use ndarray::Array2;
-use thin_vec::ThinVec;
 
-use super::{field::Field, scenario::Scenario, util::Index, Simulator};
+use super::Simulator;
 
-pub use osm::OptimalStepsModel;
+pub use self::{osm::OptimalStepsModel, osm_gpu::OptimalStepsModelGpu};
 
 pub trait PedestrianModel {
     fn spawn_pedestrians(&mut self, pedestrians: Vec<Pedestrian>);
@@ -22,13 +21,6 @@ pub trait PedestrianModel {
     fn get_pedestrian_count(&self) -> i32;
 }
 
-// pub struct Environment<'a> {
-//     pub scenario: &'a Scenario,
-//     pub field: &'a Field,
-//     pub neighbor_grid: &'a Option<Array2<ThinVec<u32>>>,
-//     pub neighbor_grid_belong: &'a Option<Vec<Index>>,
-// }
-
 /// Pedestrian instance
 #[derive(Debug, Clone)]
 pub struct Pedestrian {
@@ -39,10 +31,6 @@ pub struct Pedestrian {
 
 impl Default for Pedestrian {
     fn default() -> Self {
-        // default parameters from https://arxiv.org/abs/cond-mat/9805244
-
-        // let v0 = fastrand_contrib::f32_normal_approx(1.34, 0.26);
-
         Pedestrian {
             active: true,
             pos: Vec2::default(),
