@@ -1,6 +1,7 @@
 pub mod diagnostic;
 pub mod field;
 mod kernels;
+mod models;
 pub mod scenario;
 pub mod util;
 
@@ -11,6 +12,7 @@ use crate::{
 };
 use field::Field;
 use glam::{vec2, Vec2};
+use models::Pedestrian;
 use ndarray::Array2;
 
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
@@ -24,7 +26,6 @@ pub struct Simulator {
     pub scenario: Scenario,
     pub field: Field,
     pub pedestrians: Vec<Pedestrian>,
-    // pub static_draw_commands: Vec<DrawCommand>,
     pub neighbor_grid: Option<Array2<ThinVec<u32>>>,
     pub neighbor_grid_belong: Option<Vec<Index>>,
 }
@@ -33,43 +34,15 @@ impl Simulator {
     /// Create new simulator instance with scenario
     pub fn with_scenario(scenario: Scenario) -> Self {
         let field = Field::from_scenario(&scenario);
-        // let static_draw_commands = Self::create_static_draw_commands(&scenario);
 
         Simulator {
             scenario,
             field,
             pedestrians: vec![],
-            // static_draw_commands,
             neighbor_grid: None,
             neighbor_grid_belong: None,
         }
     }
-
-    // fn create_static_draw_commands(scenario: &Scenario) -> Vec<DrawCommand> {
-    //     let obs_instances = scenario
-    //         .obstacles
-    //         .iter()
-    //         .map(|obstacle| {
-    //             Instance::line_segment(obstacle.line, obstacle.width, [255, 255, 255, 64])
-    //         })
-    //         .collect();
-    //     let wp_instances = scenario
-    //         .waypoints
-    //         .iter()
-    //         .map(|wp| Instance::line_segment(wp.line, wp.width, [255, 255, 0, 255]))
-    //         .collect();
-
-    //     vec![
-    //         DrawCommand {
-    //             mesh_id: 4,
-    //             instances: obs_instances,
-    //         },
-    //         DrawCommand {
-    //             mesh_id: 4,
-    //             instances: wp_instances,
-    //         },
-    //     ]
-    // }
 
     pub fn spawn_pedestrians(&mut self) {
         for pedestrian in self.scenario.pedestrians.iter() {
@@ -246,27 +219,5 @@ impl Simulator {
             .sum();
 
         p_field + p_pedestrians + p_obstacles
-    }
-}
-
-/// Pedestrian instance
-#[derive(Debug)]
-pub struct Pedestrian {
-    pub active: bool,
-    pub pos: Vec2,
-    pub destination: usize,
-}
-
-impl Default for Pedestrian {
-    fn default() -> Self {
-        // default parameters from https://arxiv.org/abs/cond-mat/9805244
-
-        // let v0 = fastrand_contrib::f32_normal_approx(1.34, 0.26);
-
-        Pedestrian {
-            active: true,
-            pos: Vec2::default(),
-            destination: 0,
-        }
     }
 }
