@@ -131,9 +131,12 @@ fn main() -> anyhow::Result<()> {
                 time_calc_state,
                 time_apply_state,
             };
-            info!("{:?}", metrics);
             let mut diagnostic = DIAGNOSTIC.lock().unwrap();
             diagnostic.push(metrics);
+
+            if diagnostic.history_cursor == 0 {
+                info!("{:?}", diagnostic);
+            }
         }
 
         let calc_time = Instant::now() - start;

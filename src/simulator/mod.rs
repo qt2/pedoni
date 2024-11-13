@@ -5,10 +5,9 @@ pub mod optim;
 pub mod scenario;
 pub mod util;
 
-use std::{any::Any, sync::Arc};
+use std::any::Any;
 
 use crate::{State, STATE};
-use eframe::wgpu;
 use field::Field;
 use models::{OptimalStepsModel, OptimalStepsModelGpu, Pedestrian, PedestrianModel};
 use ndarray::Array2;

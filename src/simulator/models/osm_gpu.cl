@@ -1,34 +1,35 @@
 #define Q 16
 #define R 0.03f
+#define NC 256
 
 __kernel void
 calc_next_state(__global float2 *positions, __global uint *destinations,
-                __global float4 *waypoints, __global uint16 *neighbor_grid,
-                uint2 neighbor_grid_shape, float neighbor_grid_unit,
-                __global float2 *next_positions) {
+                __global float4 *waypoints, __global uint *neighbor_grid_data,
+                __global uint *neighbor_grid_indices, uint2 neighbor_grid_shape,
+                float neighbor_grid_unit, __global float2 *next_positions) {
     uint id = get_global_id(0);
     float2 pos = positions[id];
     uint dest_id = destinations[id];
     float2 dest = waypoints[dest_id].xy;
 
-    local float2 neighbors[16 * 9];
+    local float2 neighbors[NC];
     int neighbor_count = 0;
     int2 grid_id = convert_int2((float2)(pos / neighbor_grid_unit));
-    for (int y = -1; y <= 1; y++) {
-        for (int x = -1; x <= 1; x++) {
-            int2 t = grid_id + (int2)(x, y);
-            if (t.x >= 0 && t.x < neighbor_grid_shape.y && t.y >= 0 &&
-                t.y < neighbor_grid_shape.x) {
-                uint16 others =
-                    neighbor_grid[t.x + t.y * neighbor_grid_shape.x];
-                for (int i = 0; i < 16; i++) {
-                    uint oid = others[i];
-                    if (oid != 0) {
-                        neighbors[neighbor_count] = positions[oid];
-                        neighbor_count++;
-                    }
-                }
+
+    int y_start = max(grid_id.y - 1, 0);
+    int y_end = min(grid_id.y + 1, (int)neighbor_grid_shape.y - 1);
+    for (int y = y_start; y <= y_end; y++) {
+        int row_id = y * (int)neighbor_grid_shape.x;
+        int x_start = max(grid_id.x - 1, 0);
+        int x_end = min(grid_id.x + 1, (int)neighbor_grid_shape.x);
+        for (int i = neighbor_grid_indices[row_id + x_start];
+             i < neighbor_grid_indices[row_id + x_end + 1]; i++) {
+            if (neighbor_count >= NC) {
+                break;
             }
+            uint oid = neighbor_grid_data[i];
+            neighbors[neighbor_count] = positions[oid];
+            neighbor_count++;
         }
     }
 
