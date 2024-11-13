@@ -6,6 +6,7 @@ pub struct Diagnostic {
     pub history_cursor: usize,
     pub time_setup_field: i32,
     pub time_calc_state: AggregatedMeetrics,
+    pub time_calc_state_kernel: AggregatedMeetrics,
     pub active_ped_count: i32,
 }
 
@@ -14,6 +15,7 @@ impl Debug for Diagnostic {
         f.debug_struct("Diagnostic")
             .field("active_ped_count", &self.active_ped_count)
             .field("time_calc_state", &self.time_calc_state)
+            .field("time_calc_state_kernel", &self.time_calc_state_kernel)
             .finish()
     }
 }
@@ -28,6 +30,7 @@ impl Default for Diagnostic {
             history_cursor: 0,
             time_setup_field: 0,
             time_calc_state: AggregatedMeetrics::default(),
+            time_calc_state_kernel: AggregatedMeetrics::default(),
             active_ped_count: 0,
         }
     }
@@ -40,10 +43,17 @@ impl Diagnostic {
 
         if self.history_cursor >= self.history_size {
             self.time_calc_state.init();
+            self.time_calc_state_kernel.init();
+
             for metrics in self.history.iter() {
                 self.time_calc_state.add(metrics.time_calc_state);
+                self.time_calc_state_kernel
+                    .add(metrics.time_calc_state_kernel);
             }
+
             self.time_calc_state.finish(self.history_size);
+            self.time_calc_state_kernel.finish(self.history_size);
+
             self.active_ped_count = self.history[self.history_size - 1].active_ped_count;
             self.history_cursor = 0;
         }
@@ -58,6 +68,7 @@ impl Diagnostic {
 pub struct DiagnosticMetrics {
     pub active_ped_count: i32,
     pub time_calc_state: f64,
+    pub time_calc_state_kernel: f64,
     pub time_apply_state: f64,
 }
 

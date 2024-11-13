@@ -2,7 +2,7 @@ use glam::{vec2, Vec2};
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
 use crate::simulator::{
-    optim::{NelderMead, Optimizer},
+    optim::{CircleBorder, NelderMead, Optimizer},
     util, Simulator,
 };
 
@@ -122,9 +122,13 @@ impl PedestrianModel for OptimalStepsModel {
     }
 
     fn calc_next_state(&self, sim: &Simulator) -> Box<dyn std::any::Any> {
-        let optimizer = NelderMead {
-            init: vec![Vec2::ZERO, vec2(0.05, 0.00025), vec2(0.00025, 0.05)],
-            bound: Some(R),
+        // let optimizer = NelderMead {
+        //     init: vec![Vec2::ZERO, vec2(0.05, 0.00025), vec2(0.00025, 0.05)],
+        //     bound: Some(R),
+        // };
+        let optimizer = CircleBorder {
+            radius: R,
+            samples: 16,
         };
 
         let state: Vec<_> = self

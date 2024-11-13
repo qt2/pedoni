@@ -9,18 +9,20 @@ use std::any::Any;
 
 use crate::{State, STATE};
 use field::Field;
-use models::{OptimalStepsModel, OptimalStepsModelGpu, Pedestrian, PedestrianModel};
+use models::{Pedestrian, PedestrianModel};
 use ndarray::Array2;
 
 use scenario::Scenario;
 use thin_vec::ThinVec;
 use util::Index;
 
+type Model = models::OptimalStepsModel;
+
 /// Simulator instance
 pub struct Simulator {
     pub scenario: Scenario,
     pub field: Field,
-    pub model: OptimalStepsModelGpu,
+    pub model: Model,
     pub neighbor_grid: Option<Array2<ThinVec<u32>>>,
     pub neighbor_grid_belong: Option<Vec<Index>>,
     pub neighbor_grid_unit: Option<f32>,
@@ -31,7 +33,7 @@ impl Simulator {
         Simulator {
             scenario: Scenario::default(),
             field: Field::default(),
-            model: OptimalStepsModelGpu::new(),
+            model: Model::new(),
             neighbor_grid: None,
             neighbor_grid_belong: None,
             neighbor_grid_unit: None,

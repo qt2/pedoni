@@ -4,7 +4,7 @@
 
 __kernel void
 calc_next_state(__global float2 *positions, __global uint *destinations,
-                __global float4 *waypoints, __global uint *neighbor_grid_data,
+                __constant float4 *waypoints, __global uint *neighbor_grid_data,
                 __global uint *neighbor_grid_indices, uint2 neighbor_grid_shape,
                 float neighbor_grid_unit, __global float2 *next_positions) {
     uint id = get_global_id(0);
@@ -34,7 +34,7 @@ calc_next_state(__global float2 *positions, __global uint *destinations,
     }
 
     float r_unit = 2.0 * M_PI_F / Q;
-    float best_u = 1e10;
+    float best_u = 1e10f;
     float2 best_pos;
     for (uint i = 0; i < Q; i++) {
         float theta = r_unit * (float)i;
@@ -42,16 +42,15 @@ calc_next_state(__global float2 *positions, __global uint *destinations,
 
         float u_field = distance(x, dest);
 
-        float u_ped = 0.0;
+        float u_ped = 0.0f;
         for (int j = 0; j < neighbor_count; j++) {
             float d = distance(x, neighbors[j]);
-            float u_j;
-            if (d > 0.4 + 1.0) {
-                u_j = 0.0;
-            } else if (d <= 0.4) {
-                u_j = 1000.0;
-            } else {
-                u_j = 0.4 * exp(-1.0 * powr(d, 0.2f));
+            float u_j = 0.0f;
+
+            if (d <= 0.4f) {
+                u_j = 1000.0f;
+            } else if (d <= 1.4f) {
+                u_j = 0.4f * native_exp(-native_powr(d, 0.2f));
             }
             u_ped += u_j;
         }

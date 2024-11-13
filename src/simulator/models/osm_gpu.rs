@@ -1,14 +1,15 @@
-use glam::{vec2, Vec2};
+use std::time::Duration;
+
+use glam::Vec2;
 use ocl::{
-    prm::{Float16, Float2, Float4, Uint16, Uint2},
-    ProQue,
+    core::ProfilingInfo,
+    prm::{Float2, Float4, Uint2},
+    Event, MemFlags, ProQue,
 };
 
-use crate::simulator::Simulator;
+use crate::{simulator::Simulator, DIAGNOSTIC};
 
 use super::PedestrianModel;
-
-const R: f32 = 0.3;
 
 pub struct OptimalStepsModelGpu {
     positions: Vec<Float2>,
@@ -19,7 +20,11 @@ pub struct OptimalStepsModelGpu {
 impl OptimalStepsModelGpu {
     pub fn new() -> Self {
         let source = include_str!("osm_gpu.cl");
-        let pq = ProQue::builder().src(source).build().unwrap();
+        let pq = ProQue::builder()
+            .src(source)
+            .queue_properties(ocl::core::QUEUE_PROFILING_ENABLE)
+            .build()
+            .unwrap();
 
         OptimalStepsModelGpu {
             positions: Vec::new(),
@@ -74,28 +79,33 @@ impl OptimalStepsModelGpu {
 
         let position_buffer = pq
             .buffer_builder()
+            .flags(MemFlags::READ_ONLY)
             .copy_host_slice(&self.positions)
             .build()?;
         let destination_buffer = pq
             .buffer_builder()
+            .flags(MemFlags::READ_ONLY)
             .copy_host_slice(&self.destinations)
             .build()?;
         let waypoint_buffer = pq
             .buffer_builder()
+            .flags(MemFlags::READ_ONLY)
             .len(waypoints.len())
             .copy_host_slice(&waypoints)
             .build()?;
         let neighbor_grid_data_buffer = pq
             .buffer_builder()
+            .flags(MemFlags::READ_ONLY)
             .len(neighbor_grid_data.len())
             .copy_host_slice(&neighbor_grid_data)
             .build()?;
         let neighbor_grid_indices_buffer = pq
             .buffer_builder()
+            .flags(MemFlags::READ_ONLY)
             .len(neighbor_grid_indices.len())
             .copy_host_slice(&neighbor_grid_indices)
             .build()?;
-        let next_position_buffer = pq.buffer_builder().build()?;
+        let next_position_buffer = pq.buffer_builder().flags(MemFlags::WRITE_ONLY).build()?;
 
         let kernel = pq
             .kernel_builder("calc_next_state")
@@ -109,8 +119,19 @@ impl OptimalStepsModelGpu {
             .arg(&next_position_buffer)
             .build()?;
 
+        let mut event = Event::empty();
         unsafe {
-            kernel.enq()?;
+            kernel.cmd().enew(&mut event).enq()?;
+        }
+        event.wait_for()?;
+        let start = event.profiling_info(ProfilingInfo::Start)?.time()?;
+        let end = event.profiling_info(ProfilingInfo::End)?.time()?;
+        let time_kernel = Duration::from_nanos(end - start);
+
+        {
+            let mut diagnostic = DIAGNOSTIC.lock().unwrap();
+            let cursor = diagnostic.history_cursor;
+            diagnostic.history[cursor].time_calc_state_kernel = time_kernel.as_secs_f64();
         }
 
         let mut next_positions = vec![Float2::zero(); dim];

@@ -99,6 +99,7 @@ fn main() -> anyhow::Result<()> {
         .skip(1)
         .next()
         .is_some_and(|arg| &arg == "headless");
+    fastrand::seed(0);
 
     thread::spawn(move || loop {
         let start = Instant::now();
@@ -126,16 +127,19 @@ fn main() -> anyhow::Result<()> {
             };
             let time_apply_state = time_apply_state.elapsed().as_secs_f64();
 
+            let mut diagnostic = DIAGNOSTIC.lock().unwrap();
+
             let metrics = DiagnosticMetrics {
                 active_ped_count,
                 time_calc_state,
                 time_apply_state,
+                ..diagnostic.last().clone()
             };
-            let mut diagnostic = DIAGNOSTIC.lock().unwrap();
+
             diagnostic.push(metrics);
 
             if diagnostic.history_cursor == 0 {
-                info!("{:?}", diagnostic);
+                info!("{:#?}", diagnostic);
             }
         }
 
