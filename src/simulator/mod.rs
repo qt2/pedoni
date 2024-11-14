@@ -16,7 +16,7 @@ use scenario::Scenario;
 use thin_vec::ThinVec;
 use util::Index;
 
-type Model = models::OptimalStepsModel;
+type Model = models::OptimalStepsModelGpu;
 
 /// Simulator instance
 pub struct Simulator {
@@ -46,7 +46,6 @@ impl Simulator {
 
         self.scenario = scenario;
         self.field = field;
-        // self.model = OptimalStepsModelGpu::new();
         self.neighbor_grid = None;
         self.neighbor_grid_belong = None;
         self.neighbor_grid_unit = None;

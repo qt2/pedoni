@@ -1,19 +1,29 @@
 #define Q 16
 #define R 0.03f
-#define NC 256
+#define NC 128
+#define LGS 8
 
 __kernel void
-calc_next_state(__global float2 *positions, __global uint *destinations,
-                __constant float4 *waypoints, __global uint *neighbor_grid_data,
+calc_next_state(uint ped_count, __global float2 *positions,
+                __global uint *destinations, __constant float4 *waypoints,
+                __global uint *neighbor_grid_data,
                 __global uint *neighbor_grid_indices, uint2 neighbor_grid_shape,
                 float neighbor_grid_unit, __global float2 *next_positions) {
-    uint id = get_global_id(0);
+    int id = get_global_id(0);
+    int lid = get_local_id(0);
+
+    if (id >= ped_count) {
+        return;
+    }
+
     float2 pos = positions[id];
     uint dest_id = destinations[id];
     float2 dest = waypoints[dest_id].xy;
 
-    local float2 neighbors[NC];
+    local float2 neighbors[NC * LGS];
+
     int neighbor_count = 0;
+    int neighbor_offset = NC * lid;
     int2 grid_id = convert_int2((float2)(pos / neighbor_grid_unit));
 
     int y_start = max(grid_id.y - 1, 0);
@@ -28,7 +38,7 @@ calc_next_state(__global float2 *positions, __global uint *destinations,
                 break;
             }
             uint oid = neighbor_grid_data[i];
-            neighbors[neighbor_count] = positions[oid];
+            neighbors[neighbor_offset + neighbor_count] = positions[oid];
             neighbor_count++;
         }
     }
@@ -38,13 +48,13 @@ calc_next_state(__global float2 *positions, __global uint *destinations,
     float2 best_pos;
     for (uint i = 0; i < Q; i++) {
         float theta = r_unit * (float)i;
-        float2 x = pos + (float2){cos(theta), sin(theta)} * R;
+        float2 x = pos + (float2){native_cos(theta), native_sin(theta)} * R;
 
         float u_field = distance(x, dest);
 
         float u_ped = 0.0f;
         for (int j = 0; j < neighbor_count; j++) {
-            float d = distance(x, neighbors[j]);
+            float d = distance(x, neighbors[neighbor_offset + j]);
             float u_j = 0.0f;
 
             if (d <= 0.4f) {

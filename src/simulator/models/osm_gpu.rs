@@ -7,9 +7,10 @@ use ocl::{
     Event, MemFlags, ProQue,
 };
 
+use super::PedestrianModel;
 use crate::{simulator::Simulator, DIAGNOSTIC};
 
-use super::PedestrianModel;
+const LOCAL_WORK_SIZE: usize = 8;
 
 pub struct OptimalStepsModelGpu {
     positions: Vec<Float2>,
@@ -23,6 +24,7 @@ impl OptimalStepsModelGpu {
         let pq = ProQue::builder()
             .src(source)
             .queue_properties(ocl::core::QUEUE_PROFILING_ENABLE)
+            .dims(1)
             .build()
             .unwrap();
 
@@ -34,6 +36,11 @@ impl OptimalStepsModelGpu {
     }
 
     fn calc_next_state_kernel(&self, sim: &Simulator) -> ocl::Result<Vec<Float2>> {
+        let ped_count = self.positions.len();
+        if ped_count == 0 {
+            return Ok(Vec::new());
+        }
+
         let waypoints: Vec<Float4> = sim
             .scenario
             .waypoints
@@ -52,39 +59,26 @@ impl OptimalStepsModelGpu {
             neighbor_grid_indices.push(index);
             neighbor_grid_data.append(&mut cell.to_vec());
         }
-        // let neighbor_grid: Vec<Uint16> = sim
-        //     .neighbor_grid
-        //     .as_ref()
-        //     .unwrap()
-        //     .iter()
-        //     .map(|neighbors| {
-        //         let mut item = [0u32; 16];
-        //         for i in 0..16.min(neighbors.len()) {
-        //             item[i] = neighbors[i];
-        //         }
-        //         item.into()
-        //     })
-        //     .collect();
+
         let neighbor_grid_shape = sim.neighbor_grid.as_ref().unwrap().shape();
         let neighbor_grid_shape =
             Uint2::new(neighbor_grid_shape[0] as u32, neighbor_grid_shape[1] as u32);
         let neighbor_grid_unit = sim.neighbor_grid_unit.unwrap();
 
         let pq = &self.pq;
-        let dim = self.positions.len();
-
-        if dim == 0 {
-            return Ok(Vec::new());
-        }
+        let global_work_size =
+            (ped_count + LOCAL_WORK_SIZE - 1) / LOCAL_WORK_SIZE * LOCAL_WORK_SIZE;
 
         let position_buffer = pq
             .buffer_builder()
             .flags(MemFlags::READ_ONLY)
+            .len(ped_count)
             .copy_host_slice(&self.positions)
             .build()?;
         let destination_buffer = pq
             .buffer_builder()
             .flags(MemFlags::READ_ONLY)
+            .len(ped_count)
             .copy_host_slice(&self.destinations)
             .build()?;
         let waypoint_buffer = pq
@@ -105,10 +99,15 @@ impl OptimalStepsModelGpu {
             .len(neighbor_grid_indices.len())
             .copy_host_slice(&neighbor_grid_indices)
             .build()?;
-        let next_position_buffer = pq.buffer_builder().flags(MemFlags::WRITE_ONLY).build()?;
+        let next_position_buffer = pq
+            .buffer_builder()
+            .flags(MemFlags::WRITE_ONLY)
+            .len(ped_count)
+            .build()?;
 
         let kernel = pq
             .kernel_builder("calc_next_state")
+            .arg(&(ped_count as u32))
             .arg(&position_buffer)
             .arg(&destination_buffer)
             .arg(&waypoint_buffer)
@@ -117,6 +116,8 @@ impl OptimalStepsModelGpu {
             .arg(&neighbor_grid_shape)
             .arg(&neighbor_grid_unit)
             .arg(&next_position_buffer)
+            .global_work_size(global_work_size)
+            .local_work_size(LOCAL_WORK_SIZE)
             .build()?;
 
         let mut event = Event::empty();
@@ -134,7 +135,7 @@ impl OptimalStepsModelGpu {
             diagnostic.history[cursor].time_calc_state_kernel = time_kernel.as_secs_f64();
         }
 
-        let mut next_positions = vec![Float2::zero(); dim];
+        let mut next_positions = vec![Float2::zero(); ped_count];
         next_position_buffer.read(&mut next_positions).enq()?;
 
         Ok(next_positions)
@@ -147,7 +148,6 @@ impl PedestrianModel for OptimalStepsModelGpu {
             self.positions.push(p.pos.to_array().into());
             self.destinations.push(p.destination as u32);
         }
-        self.pq.set_dims(self.positions.len());
     }
 
     fn calc_next_state(&self, sim: &Simulator) -> Box<dyn std::any::Any> {
