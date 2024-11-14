@@ -5,11 +5,14 @@ use std::any::Any;
 
 use glam::Vec2;
 
-use super::Simulator;
+use super::{field::Field, Simulator};
 
+#[allow(unused)]
 pub use self::{osm::OptimalStepsModel, osm_gpu::OptimalStepsModelGpu};
 
 pub trait PedestrianModel {
+    fn initialize(&mut self, _field: &Field) {}
+
     fn spawn_pedestrians(&mut self, pedestrians: Vec<Pedestrian>);
 
     fn calc_next_state(&self, sim: &Simulator) -> Box<dyn Any + Send + Sync>;

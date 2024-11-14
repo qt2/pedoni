@@ -6,6 +6,8 @@
 __kernel void
 calc_next_state(uint ped_count, __global float2 *positions,
                 __global uint *destinations, __constant float4 *waypoints,
+                read_only image2d_array_t field_potential_grids,
+                sampler_t field_potential_sampler, float field_potential_unit,
                 __global uint *neighbor_grid_data,
                 __global uint *neighbor_grid_indices, uint2 neighbor_grid_shape,
                 float neighbor_grid_unit, __global float2 *next_positions) {
@@ -50,7 +52,11 @@ calc_next_state(uint ped_count, __global float2 *positions,
         float theta = r_unit * (float)i;
         float2 x = pos + (float2){native_cos(theta), native_sin(theta)} * R;
 
-        float u_field = distance(x, dest);
+        // float u_field = distance(x, dest);
+        float4 coord = (float4)(x / field_potential_unit, (float)dest_id, 0.0f);
+        float u_field =
+            read_imagef(field_potential_grids, field_potential_sampler, coord)
+                .x;
 
         float u_ped = 0.0f;
         for (int j = 0; j < neighbor_count; j++) {

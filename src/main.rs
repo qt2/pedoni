@@ -7,7 +7,7 @@ use std::{
     path::{Path, PathBuf},
     sync::{atomic::AtomicBool, Mutex, RwLock},
     thread,
-    time::{Duration, Instant, SystemTime},
+    time::{Duration, Instant},
 };
 
 use args::Args;
@@ -101,7 +101,9 @@ fn main() -> anyhow::Result<()> {
     load_state();
 
     thread::spawn(move || {
-        fastrand::seed(0); // init
+        {
+            SIMULATOR.write().unwrap().initialize_model();
+        }
 
         loop {
             let start = Instant::now();
@@ -122,9 +124,12 @@ fn main() -> anyhow::Result<()> {
                     simulator.collect_diagnostic_metrics();
 
                     let diangostic_log = &simulator.diagnostic_log;
-                    if diangostic_log.total_steps % 60 == 0 {
+                    if diangostic_log.total_steps % 100 == 0 {
                         if let Some(metrics) = diangostic_log.step_metrics.last() {
-                            info!("{metrics:#?}");
+                            info!(
+                                "Step: {:6}, Active pedestrians: {:6}",
+                                diangostic_log.total_steps, metrics.active_ped_count
+                            );
                         }
                     }
                 }

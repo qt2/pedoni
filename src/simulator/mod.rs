@@ -63,6 +63,10 @@ impl Simulator {
         self.neighbor_grid_unit = None;
     }
 
+    pub fn initialize_model(&mut self) {
+        self.model.initialize(&self.field);
+    }
+
     pub fn spawn_pedestrians(&mut self) {
         let mut new_pedestrians = Vec::new();
 

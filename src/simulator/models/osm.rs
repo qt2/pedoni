@@ -1,8 +1,8 @@
-use glam::{vec2, Vec2};
+use glam::Vec2;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
 use crate::simulator::{
-    optim::{CircleBorder, NelderMead, Optimizer},
+    optim::{CircleBorder, Optimizer},
     util, Simulator,
 };
 
