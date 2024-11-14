@@ -150,12 +150,15 @@ impl PedestrianModel for OptimalStepsModelGpu {
         }
     }
 
-    fn calc_next_state(&self, sim: &Simulator) -> Box<dyn std::any::Any> {
+    fn calc_next_state(
+        &self,
+        sim: &Simulator,
+    ) -> Box<dyn std::any::Any + Send + Sync + Sync + Send> {
         let state = self.calc_next_state_kernel(sim).unwrap();
         Box::new(state)
     }
 
-    fn apply_next_state(&mut self, next_state: Box<dyn std::any::Any>) {
+    fn apply_next_state(&mut self, next_state: Box<dyn std::any::Any + Send + Sync>) {
         let next_state = *next_state.downcast::<Vec<Float2>>().unwrap();
         self.positions = next_state;
     }

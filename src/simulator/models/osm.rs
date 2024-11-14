@@ -121,7 +121,7 @@ impl PedestrianModel for OptimalStepsModel {
         self.pedestrians.append(&mut pedestrians);
     }
 
-    fn calc_next_state(&self, sim: &Simulator) -> Box<dyn std::any::Any> {
+    fn calc_next_state(&self, sim: &Simulator) -> Box<dyn std::any::Any + Send + Sync> {
         // let optimizer = NelderMead {
         //     init: vec![Vec2::ZERO, vec2(0.05, 0.00025), vec2(0.00025, 0.05)],
         //     bound: Some(R),
@@ -148,7 +148,7 @@ impl PedestrianModel for OptimalStepsModel {
         Box::new(state)
     }
 
-    fn apply_next_state(&mut self, next_state: Box<dyn std::any::Any>) {
+    fn apply_next_state(&mut self, next_state: Box<dyn std::any::Any + Send + Sync>) {
         let next_state = *next_state.downcast::<Vec<(Vec2, bool)>>().unwrap();
 
         self.pedestrians

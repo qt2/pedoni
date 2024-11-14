@@ -99,54 +99,41 @@ fn main() -> anyhow::Result<()> {
         .skip(1)
         .next()
         .is_some_and(|arg| &arg == "headless");
-    fastrand::seed(0);
 
-    thread::spawn(move || loop {
-        let start = Instant::now();
-        let state = STATE.lock().unwrap().clone();
+    thread::spawn(move || {
+        fastrand::seed(0); // init
 
-        if !state.paused {
-            {
-                let mut simulator = SIMULATOR.write().unwrap();
-                simulator.spawn_pedestrians();
+        loop {
+            let start = Instant::now();
+            let state = STATE.lock().unwrap().clone();
+
+            if !state.paused {
+                {
+                    let mut simulator = SIMULATOR.write().unwrap();
+                    simulator.spawn_pedestrians();
+                }
+                {
+                    let simulator = SIMULATOR.read().unwrap();
+                    simulator.calc_next_state();
+                }
+                {
+                    let mut simulator = SIMULATOR.write().unwrap();
+                    simulator.apply_next_state();
+                }
+                let mut diagnostic = DIAGNOSTIC.lock().unwrap();
+
+                // diagnostic.push(metrics);
+
+                if diagnostic.history_cursor == 0 {
+                    info!("{:#?}", diagnostic);
+                }
             }
 
-            let (time_calc_state, next_state, active_ped_count) = {
-                let simulator = SIMULATOR.read().unwrap();
-                (
-                    Instant::now(),
-                    simulator.calc_next_state(),
-                    simulator.get_pedestrian_count(),
-                )
-            };
-            let time_calc_state = time_calc_state.elapsed().as_secs_f64();
-
-            let (time_apply_state, _) = {
-                let mut simulator = SIMULATOR.write().unwrap();
-                (Instant::now(), simulator.apply_next_state(next_state))
-            };
-            let time_apply_state = time_apply_state.elapsed().as_secs_f64();
-
-            let mut diagnostic = DIAGNOSTIC.lock().unwrap();
-
-            let metrics = DiagnosticMetrics {
-                active_ped_count,
-                time_calc_state,
-                time_apply_state,
-                ..diagnostic.last().clone()
-            };
-
-            diagnostic.push(metrics);
-
-            if diagnostic.history_cursor == 0 {
-                info!("{:#?}", diagnostic);
+            let calc_time = Instant::now() - start;
+            let min_interval = Duration::from_secs_f64(state.delta_time / state.playback_speed);
+            if calc_time < min_interval {
+                thread::sleep(min_interval - calc_time);
             }
-        }
-
-        let calc_time = Instant::now() - start;
-        let min_interval = Duration::from_secs_f64(state.delta_time / state.playback_speed);
-        if calc_time < min_interval {
-            thread::sleep(min_interval - calc_time);
         }
     });
 

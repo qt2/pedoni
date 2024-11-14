@@ -12,9 +12,9 @@ pub use self::{osm::OptimalStepsModel, osm_gpu::OptimalStepsModelGpu};
 pub trait PedestrianModel {
     fn spawn_pedestrians(&mut self, pedestrians: Vec<Pedestrian>);
 
-    fn calc_next_state(&self, sim: &Simulator) -> Box<dyn Any>;
+    fn calc_next_state(&self, sim: &Simulator) -> Box<dyn Any + Send + Sync>;
 
-    fn apply_next_state(&mut self, next_state: Box<dyn Any>);
+    fn apply_next_state(&mut self, next_state: Box<dyn Any + Send + Sync>);
 
     fn list_pedestrians(&self) -> Vec<Pedestrian>;
 

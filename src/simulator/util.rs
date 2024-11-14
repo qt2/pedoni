@@ -57,9 +57,9 @@ pub fn bilinear(grid: &Array2<f32>, pos: Vec2) -> f32 {
 }
 
 /// Spawn a random integer based on Poisson distribution.
-pub fn poisson(lambda: f64) -> i32 {
+pub fn poisson(lambda: f64, rng: &mut fastrand::Rng) -> i32 {
     let mut y = 0;
-    let mut x = fastrand::f64();
+    let mut x = rng.f64();
     let exp_lambda = (-lambda).exp();
 
     while x >= exp_lambda {

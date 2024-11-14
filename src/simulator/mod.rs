@@ -5,9 +5,10 @@ pub mod optim;
 pub mod scenario;
 pub mod util;
 
-use std::any::Any;
+use std::{any::Any, sync::Mutex};
 
 use crate::{State, STATE};
+use diagnostic::DiagnosticMetrics;
 use field::Field;
 use models::{Pedestrian, PedestrianModel};
 use ndarray::Array2;
@@ -23,6 +24,9 @@ pub struct Simulator {
     pub scenario: Scenario,
     pub field: Field,
     pub model: Model,
+    pub spawn_rng: fastrand::Rng,
+    pub next_state: Mutex<Box<dyn Any + Send + Sync>>,
+    pub metrics: Mutex<DiagnosticMetrics>,
     pub neighbor_grid: Option<Array2<ThinVec<u32>>>,
     pub neighbor_grid_belong: Option<Vec<Index>>,
     pub neighbor_grid_unit: Option<f32>,
@@ -34,6 +38,9 @@ impl Simulator {
             scenario: Scenario::default(),
             field: Field::default(),
             model: Model::new(),
+            spawn_rng: fastrand::Rng::new(),
+            next_state: Mutex::new(Box::new(())),
+            metrics: Mutex::new(DiagnosticMetrics::default()),
             neighbor_grid: None,
             neighbor_grid_belong: None,
             neighbor_grid_unit: None,
@@ -56,10 +63,10 @@ impl Simulator {
 
         for pedestrian in self.scenario.pedestrians.iter() {
             let [p_1, p_2] = self.scenario.waypoints[pedestrian.origin].line;
-            let count = util::poisson(pedestrian.spawn.frequency / 10.0);
+            let count = util::poisson(pedestrian.spawn.frequency / 10.0, &mut self.spawn_rng);
 
             for _ in 0..count {
-                let pos = p_1.lerp(p_2, fastrand::f32());
+                let pos = p_1.lerp(p_2, self.spawn_rng.f32());
                 new_pedestrians.push(Pedestrian {
                     pos,
                     destination: pedestrian.destination,
@@ -103,13 +110,19 @@ impl Simulator {
         };
     }
 
-    pub fn calc_next_state(&self) -> Box<dyn Any> {
-        self.model.calc_next_state(self)
+    pub fn calc_next_state(&self) {
+        *self.next_state.lock().unwrap() = self.model.calc_next_state(self);
     }
 
-    pub fn apply_next_state(&mut self, state: Box<dyn Any>) {
+    pub fn apply_next_state(&mut self) {
+        let mut state = Box::new(()) as Box<_>;
+        let mut source = self.next_state.lock().unwrap();
+        std::mem::swap(&mut *source, &mut state);
+
         self.model.apply_next_state(state);
     }
+
+    pub fn collect_diagnostic_metrics(&mut self) {}
 
     pub fn list_pedestrians(&self) -> Vec<Pedestrian> {
         self.model.list_pedestrians()
