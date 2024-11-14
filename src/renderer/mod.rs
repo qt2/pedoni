@@ -3,7 +3,7 @@ use egui_extras::Column;
 use log::{error, info};
 use pittore::prelude::*;
 
-use crate::{load_scenario, DIAGNOSTIC, SIMULATOR, STATE};
+use crate::{load_scenario, SIMULATOR, STATE};
 
 const COLORS: &[Color] = &[
     Color::RED,
@@ -224,8 +224,8 @@ impl eframe::App for Renderer {
             });
 
         {
-            let diagnostic = DIAGNOSTIC.lock().unwrap();
-            let last_metrics = diagnostic.last();
+            let simulator = SIMULATOR.read().unwrap();
+            let last_metrics = simulator.step_metrics.lock().unwrap();
 
             egui::Window::new("diagnostic")
                 .open(&mut self.show_diagnostic)

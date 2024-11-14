@@ -8,7 +8,7 @@ use ocl::{
 };
 
 use super::PedestrianModel;
-use crate::{simulator::Simulator, DIAGNOSTIC};
+use crate::simulator::Simulator;
 
 const LOCAL_WORK_SIZE: usize = 8;
 
@@ -130,9 +130,8 @@ impl OptimalStepsModelGpu {
         let time_kernel = Duration::from_nanos(end - start);
 
         {
-            let mut diagnostic = DIAGNOSTIC.lock().unwrap();
-            let cursor = diagnostic.history_cursor;
-            diagnostic.history[cursor].time_calc_state_kernel = time_kernel.as_secs_f64();
+            let mut step_metrics = sim.step_metrics.lock().unwrap();
+            step_metrics.time_calc_state_kernel = Some(time_kernel.as_secs_f64());
         }
 
         let mut next_positions = vec![Float2::zero(); ped_count];

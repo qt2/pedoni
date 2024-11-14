@@ -1,18 +1,20 @@
+mod args;
 pub mod renderer;
 pub mod simulator;
 
 use std::{
-    fs::{self},
+    fs::{self, File},
     path::{Path, PathBuf},
-    sync::{Mutex, RwLock},
+    sync::{atomic::AtomicBool, Mutex, RwLock},
     thread,
-    time::{Duration, Instant},
+    time::{Duration, Instant, SystemTime},
 };
 
+use args::Args;
+use clap::Parser;
 use log::{info, warn};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-use simulator::diagnostic::{Diagnostic, DiagnosticMetrics};
 
 use crate::{
     renderer::Renderer,
@@ -29,7 +31,8 @@ static STATE: Mutex<State> = Mutex::new(State {
     use_neighbor_grid: false,
     neighbor_grid_unit: 2.0,
 });
-static DIAGNOSTIC: Lazy<Mutex<Diagnostic>> = Lazy::new(|| Mutex::new(Diagnostic::default()));
+// static DIAGNOSTIC: Lazy<Mutex<Diagnostic>> = Lazy::new(|| Mutex::new(Diagnostic::default()));
+static SIG_INT: AtomicBool = AtomicBool::new(false);
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct State {
@@ -93,12 +96,9 @@ fn main() -> anyhow::Result<()> {
         .filter_module("pedoni", log::LevelFilter::Info)
         .init();
 
-    load_state();
+    let args = Args::parse();
 
-    let headless = std::env::args()
-        .skip(1)
-        .next()
-        .is_some_and(|arg| &arg == "headless");
+    load_state();
 
     thread::spawn(move || {
         fastrand::seed(0); // init
@@ -119,13 +119,14 @@ fn main() -> anyhow::Result<()> {
                 {
                     let mut simulator = SIMULATOR.write().unwrap();
                     simulator.apply_next_state();
-                }
-                let mut diagnostic = DIAGNOSTIC.lock().unwrap();
+                    simulator.collect_diagnostic_metrics();
 
-                // diagnostic.push(metrics);
-
-                if diagnostic.history_cursor == 0 {
-                    info!("{:#?}", diagnostic);
+                    let diangostic_log = &simulator.diagnostic_log;
+                    if diangostic_log.total_steps % 60 == 0 {
+                        if let Some(metrics) = diangostic_log.step_metrics.last() {
+                            info!("{metrics:#?}");
+                        }
+                    }
                 }
             }
 
@@ -137,29 +138,43 @@ fn main() -> anyhow::Result<()> {
         }
     });
 
-    if headless {
+    if args.headless {
         info!("Run as headless mode");
+        ctrlc::set_handler(|| SIG_INT.store(true, std::sync::atomic::Ordering::SeqCst))?;
+
         STATE.lock().unwrap().paused = false;
 
         loop {
-            thread::sleep(Duration::from_secs(1));
+            if SIG_INT.load(std::sync::atomic::Ordering::SeqCst) {
+                let current_time = chrono::Local::now();
+                fs::create_dir("logs").ok();
+                let log_path: PathBuf = [
+                    "logs",
+                    &current_time.format("%Y-%m-%d_%H%M%S_log.json").to_string(),
+                ]
+                .iter()
+                .collect();
+                let mut log_file = File::create(&log_path)?;
+                let simulator = SIMULATOR.read().unwrap();
+
+                serde_json::to_writer_pretty(&mut log_file, &simulator.diagnostic_log)?;
+                info!("Exported log file: {}", log_path.display());
+
+                break;
+            }
+
+            thread::sleep(Duration::from_millis(100));
         }
+    } else {
+        eframe::run_native(
+            "Pedoni",
+            pittore::pittore_eframe_options(),
+            Box::new(|cc| Ok(Box::new(Renderer::new(cc)))),
+        )
+        .unwrap();
+
+        save_state();
     }
-
-    let options = eframe::NativeOptions {
-        viewport: eframe::egui::ViewportBuilder::default().with_inner_size([960.0, 720.0]),
-        renderer: eframe::Renderer::Wgpu,
-        multisampling: 4,
-        ..Default::default()
-    };
-    eframe::run_native(
-        "Pedoni",
-        options,
-        Box::new(|cc| Ok(Box::new(Renderer::new(cc)))),
-    )
-    .unwrap();
-
-    save_state();
 
     Ok(())
 }

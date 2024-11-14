@@ -5,10 +5,10 @@ pub mod optim;
 pub mod scenario;
 pub mod util;
 
-use std::{any::Any, sync::Mutex};
+use std::{any::Any, sync::Mutex, time::Instant};
 
 use crate::{State, STATE};
-use diagnostic::DiagnosticMetrics;
+use diagnostic::{DiagnositcLog, StepMetrics};
 use field::Field;
 use models::{Pedestrian, PedestrianModel};
 use ndarray::Array2;
@@ -26,7 +26,10 @@ pub struct Simulator {
     pub model: Model,
     pub spawn_rng: fastrand::Rng,
     pub next_state: Mutex<Box<dyn Any + Send + Sync>>,
-    pub metrics: Mutex<DiagnosticMetrics>,
+
+    pub diagnostic_log: DiagnositcLog,
+    pub step_metrics: Mutex<StepMetrics>,
+
     pub neighbor_grid: Option<Array2<ThinVec<u32>>>,
     pub neighbor_grid_belong: Option<Vec<Index>>,
     pub neighbor_grid_unit: Option<f32>,
@@ -40,14 +43,16 @@ impl Simulator {
             model: Model::new(),
             spawn_rng: fastrand::Rng::new(),
             next_state: Mutex::new(Box::new(())),
-            metrics: Mutex::new(DiagnosticMetrics::default()),
+
+            diagnostic_log: DiagnositcLog::default(),
+            step_metrics: Mutex::new(StepMetrics::default()),
+
             neighbor_grid: None,
             neighbor_grid_belong: None,
             neighbor_grid_unit: None,
         }
     }
 
-    /// Create new simulator instance with scenario
     pub fn load_scenario(&mut self, scenario: Scenario) {
         let field = Field::from_scenario(&scenario);
 
@@ -111,18 +116,34 @@ impl Simulator {
     }
 
     pub fn calc_next_state(&self) {
+        let instant = Instant::now();
+
         *self.next_state.lock().unwrap() = self.model.calc_next_state(self);
+
+        self.step_metrics.lock().unwrap().time_calc_state = instant.elapsed().as_secs_f64();
     }
 
     pub fn apply_next_state(&mut self) {
         let mut state = Box::new(()) as Box<_>;
         let mut source = self.next_state.lock().unwrap();
         std::mem::swap(&mut *source, &mut state);
+        let instant = Instant::now();
 
         self.model.apply_next_state(state);
+
+        self.step_metrics.lock().unwrap().time_apply_state = instant.elapsed().as_secs_f64();
     }
 
-    pub fn collect_diagnostic_metrics(&mut self) {}
+    pub fn collect_diagnostic_metrics(&mut self) {
+        let mut metrics = {
+            let mut metrics = self.step_metrics.lock().unwrap();
+            let mut empty = StepMetrics::default();
+            std::mem::swap(&mut *metrics, &mut empty);
+            empty
+        };
+        metrics.active_ped_count = self.get_pedestrian_count();
+        self.diagnostic_log.push(metrics);
+    }
 
     pub fn list_pedestrians(&self) -> Vec<Pedestrian> {
         self.model.list_pedestrians()
