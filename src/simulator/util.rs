@@ -1,6 +1,7 @@
 use glam::{vec2, Vec2};
 use ndarray::Array2;
 use num_traits::PrimInt;
+use ocl::prm::Float2;
 
 /// Index struct for [`ndarray::Array2`]
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -91,6 +92,41 @@ pub fn line_with_width(line: [Vec2; 2], width: f32) -> Vec<Vec2> {
 
     vec![line[0] - b, line[0] + b, line[1] + b, line[1] - b]
 }
+
+pub trait ToGlam {
+    type T;
+    fn to_glam(self) -> Self::T;
+}
+
+impl ToGlam for Float2 {
+    type T = Vec2;
+    fn to_glam(self) -> Vec2 {
+        let array: [f32; 2] = self.into();
+        Vec2::from(array)
+    }
+}
+
+pub trait ToOcl {
+    type T;
+    fn to_glam(self) -> Self::T;
+}
+
+impl ToOcl for Vec2 {
+    type T = Float2;
+    fn to_glam(self) -> Float2 {
+        Float2::from(self.to_array())
+    }
+}
+
+// impl ToOcl for Vec2 {
+//     fn to_glam(&self) -> Vec2 {
+//         *self
+//     }
+
+//     fn to_ocl(&self) -> Float2 {
+//         Float2::new(self.x, self.y)
+//     }
+// }
 
 #[cfg(test)]
 mod tests {

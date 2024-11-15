@@ -1,6 +1,5 @@
-use std::time::Duration;
+use std::{sync::Mutex, time::Duration};
 
-use glam::Vec2;
 use ocl::{
     core::{
         AddressingMode, FilterMode, ImageChannelDataType, ImageChannelOrder, MemObjectType,
@@ -11,7 +10,7 @@ use ocl::{
 };
 
 use super::PedestrianModel;
-use crate::simulator::{field::Field, Simulator};
+use crate::simulator::{field::Field, util::ToGlam, Simulator};
 
 const LOCAL_WORK_SIZE: usize = 8;
 
@@ -19,12 +18,17 @@ pub struct OptimalStepsModelGpu {
     positions: Vec<Float2>,
     destinations: Vec<u32>,
     pq: ProQue,
-    field_potential_grids_buffer: Option<Image<f32>>,
-    field_potential_sampler: Option<Sampler>,
+    field_potential_grids_buffer: Image<f32>,
+    field_potential_sampler: Sampler,
+    next_state: Mutex<Vec<Float2>>,
 }
 
-impl OptimalStepsModelGpu {
-    pub fn new() -> Self {
+impl PedestrianModel for OptimalStepsModelGpu {
+    fn new(
+        _args: &crate::args::Args,
+        _scenario: &crate::simulator::scenario::Scenario,
+        field: &Field,
+    ) -> Self {
         let source = include_str!("osm_gpu.cl");
         let pq = ProQue::builder()
             .src(source)
@@ -33,46 +37,73 @@ impl OptimalStepsModelGpu {
             .build()
             .unwrap();
 
-        OptimalStepsModelGpu {
-            positions: Vec::new(),
-            destinations: Vec::new(),
-            pq,
-            field_potential_grids_buffer: None,
-            field_potential_sampler: None,
-        }
-    }
-
-    pub fn init_kernel(&mut self, field: &Field) -> ocl::Result<()> {
         let field_potential_grids_data: Vec<f32> = field
             .potentials
             .iter()
             .flat_map(|grid| grid.iter().cloned())
             .collect();
 
-        self.field_potential_grids_buffer = Some(
-            Image::builder()
-                .channel_data_type(ImageChannelDataType::Float)
-                .channel_order(ImageChannelOrder::R)
-                .image_type(MemObjectType::Image2dArray)
-                .dims((field.shape.1, field.shape.0, field.potentials.len()))
-                .array_size(field.potentials.len())
-                .copy_host_slice(&field_potential_grids_data)
-                .queue(self.pq.queue().clone())
-                .build()?,
-        );
-        self.field_potential_sampler = Some(
-            Sampler::new(
-                &self.pq.context(),
-                false,
-                AddressingMode::Clamp,
-                FilterMode::Linear,
-            )
-            .unwrap(),
-        );
+        let field_potential_grids_buffer = Image::builder()
+            .channel_data_type(ImageChannelDataType::Float)
+            .channel_order(ImageChannelOrder::R)
+            .image_type(MemObjectType::Image2dArray)
+            .dims((field.shape.1, field.shape.0, field.potentials.len()))
+            .array_size(field.potentials.len())
+            .copy_host_slice(&field_potential_grids_data)
+            .queue(pq.queue().clone())
+            .build()
+            .unwrap();
+        let field_potential_sampler = Sampler::new(
+            &pq.context(),
+            false,
+            AddressingMode::Clamp,
+            FilterMode::Linear,
+        )
+        .unwrap();
 
-        Ok(())
+        OptimalStepsModelGpu {
+            positions: Vec::new(),
+            destinations: Vec::new(),
+            pq,
+            field_potential_grids_buffer,
+            field_potential_sampler,
+            next_state: Mutex::new(Vec::new()),
+        }
     }
 
+    fn spawn_pedestrians(&mut self, new_pedestrians: Vec<super::Pedestrian>) {
+        for p in new_pedestrians {
+            self.positions.push(p.pos.to_array().into());
+            self.destinations.push(p.destination as u32);
+        }
+    }
+
+    fn calc_next_state(&self, sim: &Simulator) {
+        let state = self.calc_next_state_kernel(sim).unwrap();
+        *self.next_state.lock().unwrap() = state;
+    }
+
+    fn apply_next_state(&mut self) {
+        let mut next_state = self.next_state.lock().unwrap();
+        std::mem::swap(&mut self.positions, &mut *next_state);
+    }
+
+    fn list_pedestrians(&self) -> Vec<super::Pedestrian> {
+        (0..self.positions.len())
+            .map(|i| super::Pedestrian {
+                active: true,
+                pos: self.positions[i].to_glam(),
+                destination: self.destinations[i] as usize,
+            })
+            .collect()
+    }
+
+    fn get_pedestrian_count(&self) -> i32 {
+        self.positions.len() as i32
+    }
+}
+
+impl OptimalStepsModelGpu {
     fn calc_next_state_kernel(&self, sim: &Simulator) -> ocl::Result<Vec<Float2>> {
         let ped_count = self.positions.len();
         if ped_count == 0 {
@@ -90,20 +121,19 @@ impl OptimalStepsModelGpu {
 
         let neighbor_grid = sim.neighbor_grid.as_ref().unwrap();
         let mut neighbor_grid_data: Vec<u32> = Vec::with_capacity(self.positions.len());
-        let mut neighbor_grid_indices: Vec<u32> = Vec::with_capacity(neighbor_grid.len() + 1);
+        let mut neighbor_grid_indices: Vec<u32> = Vec::with_capacity(neighbor_grid.data.len() + 1);
         neighbor_grid_indices.push(0);
 
         let mut index = 0;
-        for cell in neighbor_grid.iter() {
+        for cell in neighbor_grid.data.iter() {
             index += cell.len() as u32;
             neighbor_grid_indices.push(index);
             neighbor_grid_data.append(&mut cell.to_vec());
         }
 
-        let neighbor_grid_shape = sim.neighbor_grid.as_ref().unwrap().shape();
+        let neighbor_grid_shape = neighbor_grid.shape;
         let neighbor_grid_shape =
-            Uint2::new(neighbor_grid_shape[0] as u32, neighbor_grid_shape[1] as u32);
-        let neighbor_grid_unit = sim.neighbor_grid_unit.unwrap();
+            Uint2::new(neighbor_grid_shape.0 as u32, neighbor_grid_shape.1 as u32);
 
         let pq = &self.pq;
         let global_work_size =
@@ -151,13 +181,13 @@ impl OptimalStepsModelGpu {
             .arg(&position_buffer)
             .arg(&destination_buffer)
             .arg(&waypoint_buffer)
-            .arg(self.field_potential_grids_buffer.as_ref().unwrap())
-            .arg_sampler(self.field_potential_sampler.as_ref().unwrap())
+            .arg(&self.field_potential_grids_buffer)
+            .arg_sampler(&self.field_potential_sampler)
             .arg(&field_potential_unit)
             .arg(&neighbor_grid_data_buffer)
             .arg(&neighbor_grid_indices_buffer)
             .arg(&neighbor_grid_shape)
-            .arg(&neighbor_grid_unit)
+            .arg(&neighbor_grid.unit)
             .arg(&next_position_buffer)
             .global_work_size(global_work_size)
             .local_work_size(LOCAL_WORK_SIZE)
@@ -181,57 +211,6 @@ impl OptimalStepsModelGpu {
         next_position_buffer.read(&mut next_positions).enq()?;
 
         Ok(next_positions)
-    }
-}
-
-impl PedestrianModel for OptimalStepsModelGpu {
-    fn initialize(&mut self, field: &Field) {
-        self.init_kernel(field).unwrap();
-    }
-
-    fn spawn_pedestrians(&mut self, pedestrians: Vec<super::Pedestrian>) {
-        for p in pedestrians {
-            self.positions.push(p.pos.to_array().into());
-            self.destinations.push(p.destination as u32);
-        }
-    }
-
-    fn calc_next_state(
-        &self,
-        sim: &Simulator,
-    ) -> Box<dyn std::any::Any + Send + Sync + Sync + Send> {
-        let state = self.calc_next_state_kernel(sim).unwrap();
-        Box::new(state)
-    }
-
-    fn apply_next_state(&mut self, next_state: Box<dyn std::any::Any + Send + Sync>) {
-        let next_state = *next_state.downcast::<Vec<Float2>>().unwrap();
-        self.positions = next_state;
-    }
-
-    fn list_pedestrians(&self) -> Vec<super::Pedestrian> {
-        (0..self.positions.len())
-            .map(|i| super::Pedestrian {
-                active: true,
-                pos: self.positions[i].as_vec2(),
-                destination: self.destinations[i] as usize,
-            })
-            .collect()
-    }
-
-    fn get_pedestrian_count(&self) -> i32 {
-        self.positions.len() as i32
-    }
-}
-
-pub trait AsVec2 {
-    fn as_vec2(self) -> Vec2;
-}
-
-impl AsVec2 for Float2 {
-    fn as_vec2(self) -> Vec2 {
-        let array: [f32; 2] = self.into();
-        array.into()
     }
 }
 

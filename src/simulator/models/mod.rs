@@ -1,27 +1,56 @@
 mod osm;
 mod osm_gpu;
 
-use std::any::Any;
-
 use glam::Vec2;
 
-use super::{field::Field, Simulator};
+use super::{field::Field, scenario::Scenario, Simulator};
+use crate::args::Args;
 
 #[allow(unused)]
 pub use self::{osm::OptimalStepsModel, osm_gpu::OptimalStepsModelGpu};
 
-pub trait PedestrianModel {
-    fn initialize(&mut self, _field: &Field) {}
+pub trait PedestrianModel: Send + Sync {
+    fn new(_args: &Args, _scenario: &Scenario, _field: &Field) -> Self
+    where
+        Self: Sized;
 
     fn spawn_pedestrians(&mut self, pedestrians: Vec<Pedestrian>);
 
-    fn calc_next_state(&self, sim: &Simulator) -> Box<dyn Any + Send + Sync>;
+    fn calc_next_state(&self, sim: &Simulator);
 
-    fn apply_next_state(&mut self, next_state: Box<dyn Any + Send + Sync>);
+    fn apply_next_state(&mut self);
 
     fn list_pedestrians(&self) -> Vec<Pedestrian>;
 
     fn get_pedestrian_count(&self) -> i32;
+}
+
+pub struct EmptyModel;
+
+impl PedestrianModel for EmptyModel {
+    fn new(_args: &Args, _scenario: &Scenario, _field: &Field) -> Self {
+        todo!()
+    }
+
+    fn spawn_pedestrians(&mut self, _pedestrians: Vec<Pedestrian>) {
+        todo!()
+    }
+
+    fn calc_next_state(&self, _sim: &Simulator) {
+        todo!()
+    }
+
+    fn apply_next_state(&mut self) {
+        todo!()
+    }
+
+    fn list_pedestrians(&self) -> Vec<Pedestrian> {
+        todo!()
+    }
+
+    fn get_pedestrian_count(&self) -> i32 {
+        todo!()
+    }
 }
 
 /// Pedestrian instance

@@ -1,9 +1,7 @@
-use eframe::egui::{self, Modifiers, RichText};
-use egui_extras::Column;
-use log::{error, info};
+use eframe::egui::{self, RichText};
 use pittore::prelude::*;
 
-use crate::{load_scenario, SIMULATOR, STATE};
+use crate::{SIMULATOR, STATE};
 
 const COLORS: &[Color] = &[
     Color::RED,
@@ -50,7 +48,6 @@ impl FieldCanvas {
             }
         }
 
-        // let dpi = ctx.native_pixels_per_point().unwrap_or_default();
         let delta_drag = response.drag_delta() / camera.scale; // double it to follow wgpu's coordinate system
 
         camera.position.x -= delta_drag.x;
@@ -132,33 +129,7 @@ impl Renderer {
 impl eframe::App for Renderer {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
-            let open_scenario_shortcut =
-                egui::KeyboardShortcut::new(Modifiers::COMMAND, egui::Key::O);
-
             egui::menu::bar(ui, |ui| {
-                ui.menu_button("File", |ui| {
-                    if ui
-                        .add(
-                            egui::Button::new("Open scenario")
-                                .shortcut_text(ui.ctx().format_shortcut(&open_scenario_shortcut)),
-                        )
-                        .clicked()
-                    {
-                        if let Some(path) = rfd::FileDialog::new().pick_file() {
-                            info!("Loading scenario: {:?}", &path);
-                            if let Err(err) = load_scenario(&path) {
-                                error!("Failed to load scenario: {path:?}\n{err:?}");
-                            }
-                        }
-                        ui.close_menu();
-                    }
-
-                    if ui.add(egui::Button::new("Save control state")).clicked() {
-                        crate::save_state();
-                        ui.close_menu();
-                    }
-                });
-
                 ui.menu_button("View", |ui| {
                     let mut show_button = |text: &str, value: &mut bool| {
                         if ui
@@ -179,40 +150,6 @@ impl eframe::App for Renderer {
             })
         });
 
-        egui::SidePanel::right("right-panel").show(ctx, |ui| {
-            egui::ScrollArea::new([false, true])
-                .auto_shrink(false)
-                .show(ui, |ui| {
-                    egui::CollapsingHeader::new("Pedestrians")
-                        .default_open(true)
-                        .show(ui, |ui| {
-                            let mut table = egui_extras::TableBuilder::new(ui)
-                                .column(Column::auto())
-                                .column(Column::remainder());
-                            table = table.sense(egui::Sense::click());
-
-                            {
-                                let pedestrians = &SIMULATOR.read().unwrap().scenario.pedestrians;
-                                table.body(|body| {
-                                    body.rows(20.0, pedestrians.len(), |mut row| {
-                                        let index = row.index();
-                                        let ped = &pedestrians[index];
-                                        row.col(|ui| {
-                                            ui.strong("🚶");
-                                        });
-                                        row.col(|ui| {
-                                            ui.strong(format!(
-                                                "#{} ({} -> {})",
-                                                index, ped.origin, ped.destination
-                                            ));
-                                        });
-                                    });
-                                })
-                            }
-                        });
-                });
-        });
-
         egui::CentralPanel::default()
             .frame(egui::Frame::central_panel(&ctx.style()).inner_margin(0.0))
             .show(ctx, |ui| {
@@ -225,7 +162,7 @@ impl eframe::App for Renderer {
 
         {
             let simulator = SIMULATOR.read().unwrap();
-            let last_metrics = simulator.step_metrics.lock().unwrap();
+            let metrics = simulator.step_metrics.lock().unwrap();
 
             egui::Window::new("diagnostic")
                 .open(&mut self.show_diagnostic)
@@ -236,22 +173,18 @@ impl eframe::App for Renderer {
                         .striped(true)
                         .show(ui, |ui| {
                             ui.label("Active Pedestrians");
-                            ui.label(
-                                RichText::new(last_metrics.active_ped_count.to_string()).strong(),
-                            );
+                            ui.label(RichText::new(metrics.active_ped_count.to_string()).strong());
                             ui.end_row();
 
                             ui.label("Calc State Time");
                             ui.label(
-                                RichText::new(format!("{:.4}s", last_metrics.time_calc_state))
-                                    .strong(),
+                                RichText::new(format!("{:.4}s", metrics.time_calc_state)).strong(),
                             );
                             ui.end_row();
 
                             ui.label("Apply State Time");
                             ui.label(
-                                RichText::new(format!("{:.4}s", last_metrics.time_apply_state))
-                                    .strong(),
+                                RichText::new(format!("{:.4}s", metrics.time_apply_state)).strong(),
                             );
                             ui.end_row();
                         });
@@ -283,25 +216,9 @@ impl eframe::App for Renderer {
                                 egui::DragValue::new(&mut state.playback_speed)
                                     .suffix("x")
                                     .speed(0.1)
-                                    .range(0.1..=100.0),
+                                    .range(0.1..=1000.0),
                             );
                             ui.end_row();
-
-                            ui.label("Use Neighbor Grid");
-                            ui.checkbox(&mut state.use_neighbor_grid, "");
-                            ui.end_row();
-
-                            ui.label("Neighbor Grid Unit");
-                            ui.add(
-                                egui::DragValue::new(&mut state.neighbor_grid_unit)
-                                    .suffix("m")
-                                    .speed(0.1)
-                                    .range(0.1..=100.0),
-                            );
-                            ui.end_row();
-
-                            // ui.label("Use Neighbor Grid");
-                            // ui.checkbox(&mut state.use_neighbor_grid, "Use Neighbor Grid")
 
                             ui.label("Theme");
                             ui.horizontal(|ui| {
