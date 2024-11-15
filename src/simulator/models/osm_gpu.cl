@@ -52,31 +52,63 @@ calc_next_state(uint ped_count, __global float2 *positions,
         float theta = r_unit * (float)i;
         float2 x = pos + (float2){native_cos(theta), native_sin(theta)} * R;
 
-        // float u_field = distance(x, dest);
         float4 coord = (float4)(x / field_potential_unit, (float)dest_id, 0.0f);
-        float u_field =
+        float u =
             read_imagef(field_potential_grids, field_potential_sampler, coord)
                 .x;
 
-        float u_ped = 0.0f;
         for (int j = 0; j < neighbor_count; j++) {
             float d = distance(x, neighbors[neighbor_offset + j]);
-            float u_j = 0.0f;
-
             if (d <= 0.4f) {
-                u_j = 1000.0f;
+                u += 1000.0f;
             } else if (d <= 1.4f) {
-                u_j = 0.4f * native_exp(-native_powr(d, 0.2f));
+                u += 0.4f * native_exp(-native_powr(d, 0.2f));
             }
-            u_ped += u_j;
         }
 
-        float u = u_field + u_ped;
         if (u < best_u) {
             best_u = u;
             best_pos = x;
         }
     }
+
+    // float r_unit = 2.0 * M_PI_F / Q;
+    // float2 xs[Q];
+    // float us[Q] = {0.0f};
+
+    // for (int i = 0; i < Q; i++) {
+    //     float theta = r_unit * (float)i;
+    //     float2 x = pos + (float2){native_cos(theta), native_sin(theta)} * R;
+    //     xs[i] = x;
+    //     float4 coord = (float4)(x / field_potential_unit, (float)dest_id,
+    //     0.0f); us[i] =
+    //         read_imagef(field_potential_grids, field_potential_sampler,
+    //         coord)
+    //             .x;
+    // }
+
+    // for (int j = 0; j < neighbor_count; j++) {
+    //     float2 neighbor_pos = neighbors[neighbor_offset + j];
+
+    //     for (int i = 0; i < Q; i++) {
+    //         float d = distance(xs[i], neighbor_pos);
+    //         if (d <= 0.4f) {
+    //             us[i] += 1000.0f;
+    //         } else if (d <= 1.4f) {
+    //             us[i] += 0.4f * native_exp(-native_powr(d, 0.2f));
+    //         }
+    //     }
+    // }
+
+    // float best_u = 1e10f;
+    // float2 best_pos;
+
+    // for (int i = 0; i < Q; i++) {
+    //     if (us[i] < best_u) {
+    //         best_u = us[i];
+    //         best_pos = xs[i];
+    //     }
+    // }
 
     next_positions[id] = best_pos;
 }

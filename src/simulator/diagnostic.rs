@@ -21,6 +21,7 @@ impl DiagnositcLog {
 #[derive(Debug, Default, Clone, Serialize)]
 pub struct StepMetricsCollection {
     pub active_ped_count: Vec<i32>,
+    pub time_spawn: Vec<f64>,
     pub time_calc_state: Vec<f64>,
     pub time_calc_state_kernel: Vec<Option<f64>>,
 }
@@ -28,6 +29,7 @@ pub struct StepMetricsCollection {
 impl StepMetricsCollection {
     pub fn push(&mut self, metrics: StepMetrics) {
         self.active_ped_count.push(metrics.active_ped_count);
+        self.time_spawn.push(metrics.time_spawn);
         self.time_calc_state.push(metrics.time_calc_state);
         self.time_calc_state_kernel
             .push(metrics.time_calc_state_kernel);
@@ -42,6 +44,7 @@ pub struct PreprocessMetrics {
 #[derive(Debug, Default, Clone, Serialize)]
 pub struct StepMetrics {
     pub active_ped_count: i32,
+    pub time_spawn: f64,
     pub time_calc_state: f64,
     pub time_calc_state_kernel: Option<f64>,
     pub time_apply_state: f64,

@@ -68,6 +68,8 @@ impl Simulator {
     }
 
     pub fn spawn_pedestrians(&mut self) {
+        let instant = Instant::now();
+
         let mut new_pedestrians = Vec::new();
 
         for pedestrian in self.scenario.pedestrians.iter() {
@@ -117,6 +119,8 @@ impl Simulator {
         } else {
             (None, None, None)
         };
+
+        self.step_metrics.lock().unwrap().time_spawn = instant.elapsed().as_secs_f64();
     }
 
     pub fn calc_next_state(&self) {
