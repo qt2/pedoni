@@ -125,10 +125,10 @@ fn main() -> anyhow::Result<()> {
 
                     let diangostic_log = &simulator.diagnostic_log;
                     if diangostic_log.total_steps % 100 == 0 {
-                        if let Some(metrics) = diangostic_log.step_metrics.last() {
+                        if let Some(count) = diangostic_log.step_metrics.active_ped_count.last() {
                             info!(
                                 "Step: {:6}, Active pedestrians: {:6}",
-                                diangostic_log.total_steps, metrics.active_ped_count
+                                diangostic_log.total_steps, count
                             );
                         }
                     }
@@ -162,7 +162,7 @@ fn main() -> anyhow::Result<()> {
                 let mut log_file = File::create(&log_path)?;
                 let simulator = SIMULATOR.read().unwrap();
 
-                serde_json::to_writer_pretty(&mut log_file, &simulator.diagnostic_log)?;
+                serde_json::to_writer(&mut log_file, &simulator.diagnostic_log)?;
                 info!("Exported log file: {}", log_path.display());
 
                 break;
