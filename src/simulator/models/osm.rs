@@ -1,12 +1,15 @@
 use std::sync::Mutex;
 
-use glam::Vec2;
+use glam::{IVec2, Vec2};
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
-use crate::simulator::{
-    optim::{CircleBorder, Optimizer},
-    util::Index,
-    NeighborGrid, Simulator,
+use crate::{
+    args::ModelType,
+    simulator::{
+        optim::{CircleBorder, Optimizer},
+        util::Index,
+        NeighborGrid, Simulator,
+    },
 };
 
 use super::PedestrianModel;
@@ -16,18 +19,26 @@ const R: f32 = 0.1;
 pub struct OptimalStepsModel {
     pedestrians: Vec<super::Pedestrian>,
     neighbor_grid: Option<NeighborGrid>,
+    neighbor_grid_indices: Vec<u32>,
     next_state: Mutex<Vec<(Vec2, bool)>>,
 }
 
 impl PedestrianModel for OptimalStepsModel {
     fn new(
-        _args: &crate::args::Args,
+        args: &crate::args::Args,
         scenario: &crate::simulator::scenario::Scenario,
         _field: &crate::simulator::field::Field,
     ) -> Self {
+        let neighbor_grid = match args.model {
+            ModelType::OsmNoGrid => None,
+            ModelType::OsmCpu => Some(NeighborGrid::new(scenario.field.size, 0.6)),
+            _ => unreachable!(),
+        };
+
         OptimalStepsModel {
             pedestrians: Vec::new(),
-            neighbor_grid: Some(NeighborGrid::new(scenario.field.size, 0.6)),
+            neighbor_grid,
+            neighbor_grid_indices: Vec::new(),
             next_state: Mutex::new(Vec::new()),
         }
     }
@@ -37,6 +48,22 @@ impl PedestrianModel for OptimalStepsModel {
 
         if let Some(neighbor_grid) = &mut self.neighbor_grid {
             neighbor_grid.update(self.pedestrians.iter().map(|p| p.pos));
+
+            let mut sorted_pedestrians = Vec::with_capacity(self.pedestrians.len());
+            self.neighbor_grid_indices = Vec::with_capacity(neighbor_grid.data.len() + 1);
+            self.neighbor_grid_indices.push(0);
+
+            let mut index = 0;
+            for cell in neighbor_grid.data.iter() {
+                for j in 0..cell.len() {
+                    let prev = cell[j] as usize;
+                    sorted_pedestrians.push(self.pedestrians[prev].clone());
+                }
+                index += cell.len();
+                self.neighbor_grid_indices.push(index as u32);
+            }
+
+            self.pedestrians = sorted_pedestrians;
         }
     }
 
@@ -137,14 +164,33 @@ impl OptimalStepsModel {
             let ix = Index::new(ix.x, ix.y);
             let mut potential = 0.0;
 
-            for j in -1..=1 {
-                for i in -1..=1 {
-                    let ix = ix.add(i, j);
-                    if let Some(neighbors) = grid.data.get(ix) {
-                        for &id in neighbors.iter().filter(|i| **i != self_id as u32) {
-                            let delta = (pos - self.pedestrians[id as usize].pos).length();
-                            potential += potential_ped_from_distance(delta);
-                        }
+            // for j in -1..=1 {
+            //     for i in -1..=1 {
+            //         let ix = ix.add(i, j);
+            //         if let Some(neighbors) = grid.data.get(ix) {
+            //             for &id in neighbors.iter().filter(|i| **i != self_id as u32) {
+            //                 let delta = (pos - self.pedestrians[id as usize].pos).length();
+            //                 potential += potential_ped_from_distance(delta);
+            //             }
+            //         }
+            //     }
+            // }
+
+            let shape = IVec2::new(grid.shape.1 as i32, grid.shape.0 as i32);
+            let y_start = (ix.y - 1).max(0);
+            let y_end = (ix.y + 1).min(shape.y);
+            let x_start = (ix.x - 1).max(0);
+            let x_end = (ix.x + 1).min(shape.x);
+
+            for y in y_start..=y_end {
+                let offset = y * shape.x;
+                let i_start = self.neighbor_grid_indices[(offset + x_start) as usize];
+                let i_end = self.neighbor_grid_indices[(offset + x_end + 1) as usize];
+
+                for i in i_start..i_end {
+                    if i != self_id as u32 {
+                        let distance = (pos - self.pedestrians[i as usize].pos).length();
+                        potential += potential_ped_from_distance(distance);
                     }
                 }
             }

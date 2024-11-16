@@ -4,10 +4,12 @@ use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]
 pub enum ModelType {
+    #[value(name = "no_grid")]
+    OsmNoGrid,
     #[value(name = "cpu")]
-    OptimalStepsModel,
+    OsmCpu,
     #[value(name = "gpu")]
-    OptimalStepsModelGpu,
+    OsmGpu,
 }
 
 #[derive(Debug, clap::Parser)]
@@ -22,9 +24,9 @@ pub struct Args {
     #[arg(short = 'H', long)]
     pub headless: bool,
     /// Model type
-    #[arg(value_enum, short, long, default_value_t=ModelType::OptimalStepsModel)]
+    #[arg(value_enum, short, long, default_value_t=ModelType::OsmCpu)]
     pub model: ModelType,
     /// Max playback speed
-    #[arg(long, default_value_t = 10.0)]
+    #[arg(short, long, default_value_t = 100.0)]
     pub speed: f32,
 }

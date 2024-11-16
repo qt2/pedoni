@@ -5,7 +5,7 @@ use ocl::{
         AddressingMode, FilterMode, ImageChannelDataType, ImageChannelOrder, MemObjectType,
         ProfilingInfo,
     },
-    prm::{Float2, Uint2},
+    prm::{Float2, Int2},
     Event, Image, MemFlags, ProQue, Sampler,
 };
 
@@ -16,7 +16,7 @@ use crate::simulator::{
     NeighborGrid, Simulator,
 };
 
-const LOCAL_WORK_SIZE: usize = 16;
+const LOCAL_WORK_SIZE: usize = 64;
 
 pub struct OptimalStepsModelGpu {
     positions: Vec<Float2>,
@@ -105,6 +105,8 @@ impl PedestrianModel for OptimalStepsModelGpu {
                 self.neighbor_grid_indices.push(index as u32);
             }
 
+            // assert_eq!(*self.neighbor_grid_indices.last().unwrap(), index as u32);
+
             self.positions = sorted_positions;
             self.destinations = sorted_destinations;
         }
@@ -146,7 +148,7 @@ impl OptimalStepsModelGpu {
 
         let neighbor_grid = self.neighbor_grid.as_ref().unwrap();
         let neighbor_grid_shape =
-            Uint2::new(neighbor_grid.shape.0 as u32, neighbor_grid.shape.1 as u32);
+            Int2::new(neighbor_grid.shape.0 as i32, neighbor_grid.shape.1 as i32);
 
         let pq = &self.pq;
         let global_work_size =

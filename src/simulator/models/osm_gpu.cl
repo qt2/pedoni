@@ -3,11 +3,11 @@
 #define NC 128
 // #define LGS 8
 
-inline float calc_potential(float2 x, float dest_id_f,
+inline float calc_potential(int id, float2 x, float dest_id_f,
                             float field_potential_unit,
                             image2d_array_t field_potential_grids,
                             sampler_t field_potential_sampler,
-                            float neighbor_grid_unit, uint2 neighbor_grid_shape,
+                            float neighbor_grid_unit, int2 neighbor_grid_shape,
                             uint *neighbor_grid_indices, float2 *positions) {
     float4 coord = (float4)(x / field_potential_unit - (float2)(0.5f, 0.5f),
                             dest_id_f, 0.0f);
@@ -26,18 +26,21 @@ inline float calc_potential(float2 x, float dest_id_f,
     int2 grid_id = convert_int2((float2)(x / neighbor_grid_unit));
 
     int y_start = max(grid_id.y - 1, 0);
-    int y_end = min(grid_id.y + 1, (int)neighbor_grid_shape.y - 1);
+    int y_end = min(grid_id.y + 1, neighbor_grid_shape.y - 1);
+    int x_start = max(grid_id.x - 1, 0);
+    int x_end = min(grid_id.x + 1, neighbor_grid_shape.x);
+
     for (int y = y_start; y <= y_end; y++) {
-        int row_id = y * (int)neighbor_grid_shape.x;
-        int x_start = max(grid_id.x - 1, 0);
-        int x_end = min(grid_id.x + 1, (int)neighbor_grid_shape.x);
+        int row_id = y * neighbor_grid_shape.x;
         for (int i = neighbor_grid_indices[row_id + x_start];
              i < neighbor_grid_indices[row_id + x_end + 1]; i++) {
-            float d = distance(x, positions[i]);
-            if (d <= 0.4f) {
-                u += 1000.0f;
-            } else if (d <= 1.4f) {
-                u += 0.4f * native_exp(-native_powr(d, 0.2f));
+            if (i != id) {
+                float d = distance(x, positions[i]);
+                if (d <= 0.4f) {
+                    u += 1000.0f;
+                } else if (d <= 1.4f) {
+                    u += 0.4f * native_exp(-native_powr(d, 0.2f));
+                }
             }
         }
     }
@@ -63,7 +66,7 @@ calc_next_state(uint ped_count, __global float2 *positions,
                 read_only image2d_array_t field_potential_grids,
                 sampler_t field_potential_sampler, float field_potential_unit,
                 // __global uint *neighbor_grid_data,
-                __global uint *neighbor_grid_indices, uint2 neighbor_grid_shape,
+                __global uint *neighbor_grid_indices, int2 neighbor_grid_shape,
                 float neighbor_grid_unit, __global float2 *next_positions) {
     int id = get_global_id(0);
     int lid = get_local_id(0);
@@ -99,7 +102,7 @@ calc_next_state(uint ped_count, __global float2 *positions,
     float r_unit = 2.0 * M_PI_F / Q;
     float2 best_pos = pos;
     float best_u = calc_potential(
-        pos, dest_id_f, field_potential_unit, field_potential_grids,
+        id, pos, dest_id_f, field_potential_unit, field_potential_grids,
         field_potential_sampler, neighbor_grid_unit, neighbor_grid_shape,
         neighbor_grid_indices, positions);
     uint seed = ped_count << 8;
@@ -107,7 +110,7 @@ calc_next_state(uint ped_count, __global float2 *positions,
     for (uint i = 0; i < Q; i++) {
         float theta = r_unit * ((float)i + random(i + seed));
         float2 x = pos + (float2){native_cos(theta), native_sin(theta)} * R;
-        float u = calc_potential(x, dest_id_f, field_potential_unit,
+        float u = calc_potential(id, x, dest_id_f, field_potential_unit,
                                  field_potential_grids, field_potential_sampler,
                                  neighbor_grid_unit, neighbor_grid_shape,
                                  neighbor_grid_indices, positions);

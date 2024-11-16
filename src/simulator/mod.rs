@@ -42,12 +42,9 @@ impl Simulator {
     pub fn initialize(&mut self, scenario: Scenario, args: &Args) {
         let field = Field::from_scenario(&scenario);
         let model: Box<dyn PedestrianModel> = match args.model {
-            ModelType::OptimalStepsModel => {
-                Box::new(OptimalStepsModel::new(args, &scenario, &field))
-            }
-            ModelType::OptimalStepsModelGpu => {
-                Box::new(OptimalStepsModelGpu::new(args, &scenario, &field))
-            }
+            ModelType::OsmNoGrid => Box::new(OptimalStepsModel::new(args, &scenario, &field)),
+            ModelType::OsmCpu => Box::new(OptimalStepsModel::new(args, &scenario, &field)),
+            ModelType::OsmGpu => Box::new(OptimalStepsModelGpu::new(args, &scenario, &field)),
         };
 
         self.scenario = scenario;
