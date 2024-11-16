@@ -1,7 +1,6 @@
 use std::f32::consts::PI;
 
 use glam::{vec2, Vec2};
-use ordered_float::NotNan;
 
 pub trait Optimizer {
     fn optimize(&self, f: impl Fn(Vec2) -> f32) -> (Vec2, f32);
@@ -15,15 +14,20 @@ pub struct CircleBorder {
 
 impl Optimizer for CircleBorder {
     fn optimize(&self, f: impl Fn(Vec2) -> f32) -> (Vec2, f32) {
-        (0..self.samples)
-            .map(|k| {
-                let phi = 2.0 * PI / self.samples as f32 * (k as f32 + fastrand::f32());
-                let x = self.radius * vec2(phi.cos(), phi.sin());
-                let y = f(x);
-                (x, y)
-            })
-            .min_by_key(|t| NotNan::new(t.1).unwrap())
-            .unwrap()
+        let mut best_x = Vec2::ZERO;
+        let mut best_y = f(best_x);
+
+        for i in 0..self.samples {
+            let phi = 2.0 * PI / self.samples as f32 * (i as f32 + fastrand::f32());
+            let x = self.radius * vec2(phi.cos(), phi.sin());
+            let y = f(x);
+            if y < best_y {
+                best_x = x;
+                best_y = y;
+            }
+        }
+
+        (best_x, best_y)
     }
 }
 

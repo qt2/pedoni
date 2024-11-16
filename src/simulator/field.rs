@@ -4,7 +4,7 @@ use std::{cmp::Reverse, collections::BinaryHeap};
 use geo::LineString;
 use geo_rasterize::{BinaryBuilder, LabelBuilder};
 use glam::Vec2;
-use ndarray::Array2;
+use ndarray::{s, Array2};
 use ordered_float::NotNan;
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
@@ -24,7 +24,12 @@ impl FieldBuilder {
     pub fn new(size: Vec2, unit: f32) -> Self {
         let grid_size = (size / unit).ceil();
         let shape = (grid_size.y as usize, grid_size.x as usize);
-        let obstacle_exist = Array2::from_elem(shape, false);
+        let mut obstacle_exist = Array2::from_elem(shape, false);
+
+        obstacle_exist.slice_mut(s![0, ..]).fill(true);
+        obstacle_exist.slice_mut(s![-1, ..]).fill(true);
+        obstacle_exist.slice_mut(s![.., 0]).fill(true);
+        obstacle_exist.slice_mut(s![.., -1]).fill(true);
 
         FieldBuilder {
             unit,
@@ -36,7 +41,7 @@ impl FieldBuilder {
 
     fn add_obstacle(&mut self, obstacle: &ObstacleConfig) {
         let vertices = util::line_with_width(obstacle.line, obstacle.width);
-        let shape = LineString::from(
+        let mut shape = LineString::from(
             vertices
                 .into_iter()
                 .map(|v| {
@@ -45,6 +50,7 @@ impl FieldBuilder {
                 })
                 .collect::<Vec<_>>(),
         );
+        shape.close();
 
         let mut rasterizer = BinaryBuilder::new()
             .width(self.shape.1)
@@ -59,7 +65,7 @@ impl FieldBuilder {
 
     fn add_waypoint(&mut self, waypoint: &WaypointConfig) {
         let vertices = util::line_with_width(waypoint.line, waypoint.width);
-        let shape = LineString::from(
+        let mut shape = LineString::from(
             vertices
                 .into_iter()
                 .map(|v| {
@@ -68,6 +74,7 @@ impl FieldBuilder {
                 })
                 .collect::<Vec<_>>(),
         );
+        shape.close();
 
         let mut rasterizer = LabelBuilder::background(f32::MAX)
             .width(self.shape.1)
@@ -88,10 +95,10 @@ impl FieldBuilder {
             mut potentials,
         } = self;
 
-        let mut slowness = obstacle_exist.map(|&obs| if obs { 0.0 } else { f32::MAX });
-        apply_fmm(&mut slowness, &Array2::ones(shape));
-        slowness.map_inplace(|d| *d = 1e4 * (-10.0 * *d).exp() + 1.0);
+        let mut distance_from_obstacle = obstacle_exist.map(|&obs| if obs { 0.0 } else { 1e24 });
+        apply_fmm(&mut distance_from_obstacle, &Array2::from_elem(shape, unit));
 
+        let slowness = distance_from_obstacle.map(|&d| (1e4 * (-10.0 * d).exp() + 1.0) * unit);
         potentials.par_iter_mut().for_each(|potential| {
             apply_fmm(potential, &slowness);
         });
@@ -100,6 +107,7 @@ impl FieldBuilder {
             unit,
             shape,
             obstacle_exist,
+            distance_from_obstacle,
             potentials,
         }
     }
@@ -204,6 +212,8 @@ pub struct Field {
     pub shape: (usize, usize),
     /// Boolean grid which holds obstacle existence
     pub obstacle_exist: Array2<bool>,
+    /// Distance from nearest obstacle
+    pub distance_from_obstacle: Array2<f32>,
     /// Potential against each waypoint
     pub potentials: Vec<Array2<f32>>,
 }
@@ -214,6 +224,7 @@ impl Default for Field {
             unit: 0.5,
             shape: (0, 0),
             obstacle_exist: Default::default(),
+            distance_from_obstacle: Default::default(),
             potentials: Vec::default(),
         }
     }
@@ -234,11 +245,16 @@ impl Field {
         builder.build()
     }
 
-    pub fn get_potential(&self, waypoint_id: usize, position: Vec2) -> f32 {
+    pub fn get_field_potential(&self, waypoint_id: usize, position: Vec2) -> f32 {
         let position = position / self.unit - Vec2::splat(0.5);
 
         let potential = &self.potentials[waypoint_id];
         util::bilinear(potential, position)
+    }
+
+    pub fn get_distance_from_obstacles(&self, position: Vec2) -> f32 {
+        let position = position / self.unit - Vec2::splat(0.5);
+        util::bilinear(&self.distance_from_obstacle, position)
     }
 }
 
@@ -297,7 +313,7 @@ mod tests {
 
         println!("{:?}", field.potentials[0].map(|v| *v as i32));
 
-        println!("{:?}", field.get_potential(0, vec2(-1.5, 2.0)));
+        println!("{:?}", field.get_field_potential(0, vec2(-1.5, 2.0)));
 
         // let mut target_map = Array2::from_elem(field.shape, false);
         // target_map[(10, 5)] = true;

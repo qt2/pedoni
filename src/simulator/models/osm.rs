@@ -5,33 +5,39 @@ use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIter
 
 use crate::simulator::{
     optim::{CircleBorder, Optimizer},
-    util::{self, Index},
-    Simulator,
+    util::Index,
+    NeighborGrid, Simulator,
 };
 
 use super::PedestrianModel;
 
-const R: f32 = 0.3;
+const R: f32 = 0.1;
 
 pub struct OptimalStepsModel {
     pedestrians: Vec<super::Pedestrian>,
+    neighbor_grid: Option<NeighborGrid>,
     next_state: Mutex<Vec<(Vec2, bool)>>,
 }
 
 impl PedestrianModel for OptimalStepsModel {
     fn new(
         _args: &crate::args::Args,
-        _scenario: &crate::simulator::scenario::Scenario,
+        scenario: &crate::simulator::scenario::Scenario,
         _field: &crate::simulator::field::Field,
     ) -> Self {
         OptimalStepsModel {
             pedestrians: Vec::new(),
+            neighbor_grid: Some(NeighborGrid::new(scenario.field.size, 0.6)),
             next_state: Mutex::new(Vec::new()),
         }
     }
 
-    fn spawn_pedestrians(&mut self, mut pedestrians: Vec<super::Pedestrian>) {
-        self.pedestrians.append(&mut pedestrians);
+    fn spawn_pedestrians(&mut self, mut new_pedestrians: Vec<super::Pedestrian>) {
+        self.pedestrians.append(&mut new_pedestrians);
+
+        if let Some(neighbor_grid) = &mut self.neighbor_grid {
+            neighbor_grid.update(self.pedestrians.iter().map(|p| p.pos));
+        }
     }
 
     fn calc_next_state(&self, sim: &Simulator) {
@@ -50,7 +56,7 @@ impl PedestrianModel for OptimalStepsModel {
             .enumerate()
             .filter(|(_, ped)| ped.active)
             .map(|(id, ped)| {
-                let active = sim.field.get_potential(ped.destination, ped.pos) > 2.0;
+                let active = sim.field.get_field_potential(ped.destination, ped.pos) > 2.0;
 
                 let f = |x: Vec2| self.calc_potential(ped.pos + x, sim, ped.destination, id);
                 let position = optimizer.optimize(f).0 + ped.pos;
@@ -110,7 +116,7 @@ impl OptimalStepsModel {
         const B_O: f32 = 2.0;
         const H_O: f32 = 6.0;
 
-        let p_field = 0.2 * sim.field.get_potential(destination, pos);
+        let p_field = sim.field.get_field_potential(destination, pos);
 
         if p_field < 1.0 {
             return p_field;
@@ -126,7 +132,7 @@ impl OptimalStepsModel {
             }
         };
 
-        let p_pedestrians = if let Some(ref grid) = sim.neighbor_grid {
+        let p_pedestrians = if let Some(grid) = &self.neighbor_grid {
             let ix = (pos / grid.unit).as_ivec2() + 1;
             let ix = Index::new(ix.x, ix.y);
             let mut potential = 0.0;
@@ -155,22 +161,36 @@ impl OptimalStepsModel {
                 })
                 .sum()
         };
-        let p_obstacles: f32 = sim
-            .scenario
-            .obstacles
-            .iter()
-            .map(|obs| {
-                let delta = util::distance_from_line(pos, obs.line);
-                if delta > H_O {
-                    0.0
-                } else if delta < G_P_HALF {
-                    MU_O
-                } else {
-                    NU_O * (-A_O * delta.powf(B_O)).exp()
-                }
-            })
-            .sum();
 
+        // let p_obstacles: f32 = sim
+        //     .scenario
+        //     .obstacles
+        //     .iter()
+        //     .map(|obs| {
+        //         let delta = util::distance_from_line(pos, obs.line);
+        //         if delta > H_O {
+        //             0.0
+        //         } else if delta < G_P_HALF {
+        //             MU_O
+        //         } else {
+        //             NU_O * (-A_O * delta.powf(B_O)).exp()
+        //         }
+        //     })
+        //     .sum();
+
+        let p_obstacles = {
+            let delta = sim.field.get_distance_from_obstacles(pos);
+
+            if delta > H_O {
+                0.0
+            } else if delta < G_P_HALF {
+                MU_O
+            } else {
+                NU_O * (-A_O * delta.powf(B_O)).exp()
+            }
+        };
+
+        // p_field + p_pedestrians
         p_field + p_pedestrians + p_obstacles
     }
 }

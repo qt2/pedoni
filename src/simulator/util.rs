@@ -108,12 +108,12 @@ impl ToGlam for Float2 {
 
 pub trait ToOcl {
     type T;
-    fn to_glam(self) -> Self::T;
+    fn to_ocl(self) -> Self::T;
 }
 
 impl ToOcl for Vec2 {
     type T = Float2;
-    fn to_glam(self) -> Float2 {
+    fn to_ocl(self) -> Float2 {
         Float2::from(self.to_array())
     }
 }

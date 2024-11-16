@@ -97,12 +97,12 @@ impl PittoreApp for FieldCanvas {
                     .filter(|ped| ped.active)
                     .map(|ped| Object {
                         position: ped.pos,
-                        scale: Vec2::splat(0.4),
+                        scale: Vec2::splat(0.2),
                         color: COLORS[ped.destination % COLORS.len()],
                         ..Default::default()
                     })
                     .collect();
-                c.draw_rects(pedestrians);
+                c.draw_circles(pedestrians);
             }
         });
     }

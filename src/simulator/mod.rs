@@ -21,8 +21,7 @@ pub struct Simulator {
     pub field: Field,
     pub model: Box<dyn PedestrianModel>,
     pub spawn_rng: fastrand::Rng,
-    pub neighbor_grid: Option<NeighborGrid>,
-
+    // pub neighbor_grid: Option<NeighborGrid>,
     pub diagnostic_log: DiagnositcLog,
     pub step_metrics: Mutex<StepMetrics>,
 }
@@ -34,8 +33,7 @@ impl Simulator {
             field: Field::default(),
             model: Box::new(EmptyModel),
             spawn_rng: fastrand::Rng::new(),
-            neighbor_grid: None,
-
+            // neighbor_grid: None,
             diagnostic_log: DiagnositcLog::default(),
             step_metrics: Mutex::new(StepMetrics::default()),
         }
@@ -52,7 +50,6 @@ impl Simulator {
             }
         };
 
-        self.neighbor_grid = Some(NeighborGrid::new(scenario.field.size, 0.6));
         self.scenario = scenario;
         self.field = field;
         self.model = model;
@@ -64,7 +61,6 @@ impl Simulator {
         let instant = Instant::now();
 
         let mut new_pedestrians = Vec::new();
-
         for pedestrian in self.scenario.pedestrians.iter() {
             let [p_1, p_2] = self.scenario.waypoints[pedestrian.origin].line;
             let count = util::poisson(pedestrian.spawn.frequency / 10.0, &mut self.spawn_rng);
@@ -78,12 +74,7 @@ impl Simulator {
                 })
             }
         }
-
         self.model.spawn_pedestrians(new_pedestrians);
-
-        if let Some(grid) = &mut self.neighbor_grid {
-            grid.update(self.model.list_pedestrians().iter().map(|p| p.pos));
-        }
 
         self.step_metrics.lock().unwrap().time_spawn = instant.elapsed().as_secs_f64();
     }

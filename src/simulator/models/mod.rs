@@ -14,7 +14,7 @@ pub trait PedestrianModel: Send + Sync {
     where
         Self: Sized;
 
-    fn spawn_pedestrians(&mut self, pedestrians: Vec<Pedestrian>);
+    fn spawn_pedestrians(&mut self, new_pedestrians: Vec<Pedestrian>);
 
     fn calc_next_state(&self, sim: &Simulator);
 

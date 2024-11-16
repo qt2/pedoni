@@ -5,18 +5,24 @@ use ocl::{
         AddressingMode, FilterMode, ImageChannelDataType, ImageChannelOrder, MemObjectType,
         ProfilingInfo,
     },
-    prm::{Float2, Float4, Uint2},
+    prm::{Float2, Uint2},
     Event, Image, MemFlags, ProQue, Sampler,
 };
 
 use super::PedestrianModel;
-use crate::simulator::{field::Field, util::ToGlam, Simulator};
+use crate::simulator::{
+    field::Field,
+    util::{ToGlam, ToOcl},
+    NeighborGrid, Simulator,
+};
 
-const LOCAL_WORK_SIZE: usize = 8;
+const LOCAL_WORK_SIZE: usize = 16;
 
 pub struct OptimalStepsModelGpu {
     positions: Vec<Float2>,
     destinations: Vec<u32>,
+    neighbor_grid: Option<NeighborGrid>,
+    neighbor_grid_indices: Vec<u32>,
     pq: ProQue,
     field_potential_grids_buffer: Image<f32>,
     field_potential_sampler: Sampler,
@@ -26,7 +32,7 @@ pub struct OptimalStepsModelGpu {
 impl PedestrianModel for OptimalStepsModelGpu {
     fn new(
         _args: &crate::args::Args,
-        _scenario: &crate::simulator::scenario::Scenario,
+        scenario: &crate::simulator::scenario::Scenario,
         field: &Field,
     ) -> Self {
         let source = include_str!("osm_gpu.cl");
@@ -56,7 +62,7 @@ impl PedestrianModel for OptimalStepsModelGpu {
         let field_potential_sampler = Sampler::new(
             &pq.context(),
             false,
-            AddressingMode::Clamp,
+            AddressingMode::ClampToEdge,
             FilterMode::Linear,
         )
         .unwrap();
@@ -64,6 +70,8 @@ impl PedestrianModel for OptimalStepsModelGpu {
         OptimalStepsModelGpu {
             positions: Vec::new(),
             destinations: Vec::new(),
+            neighbor_grid: Some(NeighborGrid::new(scenario.field.size, 0.6)),
+            neighbor_grid_indices: Vec::new(),
             pq,
             field_potential_grids_buffer,
             field_potential_sampler,
@@ -73,8 +81,32 @@ impl PedestrianModel for OptimalStepsModelGpu {
 
     fn spawn_pedestrians(&mut self, new_pedestrians: Vec<super::Pedestrian>) {
         for p in new_pedestrians {
-            self.positions.push(p.pos.to_array().into());
+            self.positions.push(p.pos.to_ocl());
             self.destinations.push(p.destination as u32);
+        }
+
+        if let Some(neighbor_grid) = &mut self.neighbor_grid {
+            neighbor_grid.update(self.positions.iter().map(|p| p.to_glam()));
+
+            self.neighbor_grid_indices = Vec::with_capacity(neighbor_grid.data.len() + 1);
+            self.neighbor_grid_indices.push(0);
+
+            let mut sorted_positions = Vec::with_capacity(self.positions.len());
+            let mut sorted_destinations = Vec::with_capacity(self.positions.len());
+
+            let mut index = 0;
+            for cell in neighbor_grid.data.iter() {
+                for j in 0..cell.len() {
+                    let prev = cell[j] as usize;
+                    sorted_positions.push(self.positions[prev]);
+                    sorted_destinations.push(self.destinations[prev]);
+                }
+                index += cell.len();
+                self.neighbor_grid_indices.push(index as u32);
+            }
+
+            self.positions = sorted_positions;
+            self.destinations = sorted_destinations;
         }
     }
 
@@ -110,30 +142,11 @@ impl OptimalStepsModelGpu {
             return Ok(Vec::new());
         }
 
-        let waypoints: Vec<Float4> = sim
-            .scenario
-            .waypoints
-            .iter()
-            .map(|wp| Float4::new(wp.line[0].x, wp.line[0].y, wp.line[1].x, wp.line[1].y))
-            .collect();
-
         let field_potential_unit = sim.field.unit;
 
-        let neighbor_grid = sim.neighbor_grid.as_ref().unwrap();
-        let mut neighbor_grid_data: Vec<u32> = Vec::with_capacity(self.positions.len());
-        let mut neighbor_grid_indices: Vec<u32> = Vec::with_capacity(neighbor_grid.data.len() + 1);
-        neighbor_grid_indices.push(0);
-
-        let mut index = 0;
-        for cell in neighbor_grid.data.iter() {
-            index += cell.len() as u32;
-            neighbor_grid_indices.push(index);
-            neighbor_grid_data.append(&mut cell.to_vec());
-        }
-
-        let neighbor_grid_shape = neighbor_grid.shape;
+        let neighbor_grid = self.neighbor_grid.as_ref().unwrap();
         let neighbor_grid_shape =
-            Uint2::new(neighbor_grid_shape.0 as u32, neighbor_grid_shape.1 as u32);
+            Uint2::new(neighbor_grid.shape.0 as u32, neighbor_grid.shape.1 as u32);
 
         let pq = &self.pq;
         let global_work_size =
@@ -151,23 +164,11 @@ impl OptimalStepsModelGpu {
             .len(ped_count)
             .copy_host_slice(&self.destinations)
             .build()?;
-        let waypoint_buffer = pq
-            .buffer_builder()
-            .flags(MemFlags::READ_ONLY)
-            .len(waypoints.len())
-            .copy_host_slice(&waypoints)
-            .build()?;
-        let neighbor_grid_data_buffer = pq
-            .buffer_builder()
-            .flags(MemFlags::READ_ONLY)
-            .len(neighbor_grid_data.len())
-            .copy_host_slice(&neighbor_grid_data)
-            .build()?;
         let neighbor_grid_indices_buffer = pq
             .buffer_builder()
             .flags(MemFlags::READ_ONLY)
-            .len(neighbor_grid_indices.len())
-            .copy_host_slice(&neighbor_grid_indices)
+            .len(self.neighbor_grid_indices.len())
+            .copy_host_slice(&self.neighbor_grid_indices)
             .build()?;
         let next_position_buffer = pq
             .buffer_builder()
@@ -180,11 +181,10 @@ impl OptimalStepsModelGpu {
             .arg(&(ped_count as u32))
             .arg(&position_buffer)
             .arg(&destination_buffer)
-            .arg(&waypoint_buffer)
             .arg(&self.field_potential_grids_buffer)
             .arg_sampler(&self.field_potential_sampler)
             .arg(&field_potential_unit)
-            .arg(&neighbor_grid_data_buffer)
+            // .arg(&neighbor_grid_data_buffer)
             .arg(&neighbor_grid_indices_buffer)
             .arg(&neighbor_grid_shape)
             .arg(&neighbor_grid.unit)
