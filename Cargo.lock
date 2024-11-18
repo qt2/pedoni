@@ -2493,6 +2493,7 @@ dependencies = [
  "num-integer",
  "num-traits 0.2.19",
  "rawpointer",
+ "rayon",
 ]
 
 [[package]]

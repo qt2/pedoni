@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]
 pub enum ModelType {
-    #[value(name = "no_grid")]
+    #[value(name = "nogrid")]
     OsmNoGrid,
     #[value(name = "cpu")]
     OsmCpu,

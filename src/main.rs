@@ -12,7 +12,7 @@ use std::{
 
 use args::Args;
 use clap::Parser;
-use log::info;
+use log::{info, warn};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
@@ -40,6 +40,10 @@ fn main() -> anyhow::Result<()> {
     env_logger::builder()
         .filter_module("pedoni", log::LevelFilter::Info)
         .init();
+
+    if cfg!(debug_assertions) {
+        warn!("Debug build");
+    }
 
     let args = Args::parse();
 

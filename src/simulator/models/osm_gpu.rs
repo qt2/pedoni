@@ -105,8 +105,6 @@ impl PedestrianModel for OptimalStepsModelGpu {
                 self.neighbor_grid_indices.push(index as u32);
             }
 
-            // assert_eq!(*self.neighbor_grid_indices.last().unwrap(), index as u32);
-
             self.positions = sorted_positions;
             self.destinations = sorted_destinations;
         }
