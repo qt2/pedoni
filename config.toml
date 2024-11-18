@@ -1,4 +1,0 @@
-headless = true
-scenario = "scenarios/default.toml"
-model = "cpu"
-log = true

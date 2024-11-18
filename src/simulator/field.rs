@@ -231,8 +231,8 @@ impl Default for Field {
 }
 
 impl Field {
-    pub fn from_scenario(scenario: &Scenario) -> Self {
-        let mut builder = FieldBuilder::new(scenario.field.size, 0.25);
+    pub fn from_scenario(scenario: &Scenario, unit: f32) -> Self {
+        let mut builder = FieldBuilder::new(scenario.field.size, unit);
 
         for obstacle in scenario.obstacles.iter() {
             builder.add_obstacle(obstacle);
@@ -307,7 +307,7 @@ mod tests {
             ..Default::default()
         };
 
-        let field = Field::from_scenario(&scenario);
+        let field = Field::from_scenario(&scenario, 0.25);
 
         println!("{:?}", field.obstacle_exist.map(|v| if *v { 1 } else { 0 }));
 

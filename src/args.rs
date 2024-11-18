@@ -17,9 +17,6 @@ pub struct Args {
     /// Path to scenario file
     #[arg(default_value = "scenarios/default.toml")]
     pub scenario: PathBuf,
-    /// Path to config file
-    #[arg(short, long)]
-    pub config: Option<PathBuf>,
     /// Runs in headless mode
     #[arg(short = 'H', long)]
     pub headless: bool,
@@ -29,4 +26,10 @@ pub struct Args {
     /// Max playback speed
     #[arg(short, long, default_value_t = 100.0)]
     pub speed: f32,
+    /// Unit length of field navigation grid
+    #[arg(long)]
+    pub field_unit: Option<f32>,
+    /// Unit length of neighbor grid
+    #[arg(long)]
+    pub neighbor_unit: Option<f32>,
 }

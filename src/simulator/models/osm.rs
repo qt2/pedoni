@@ -31,7 +31,10 @@ impl PedestrianModel for OptimalStepsModel {
     ) -> Self {
         let neighbor_grid = match args.model {
             ModelType::OsmNoGrid => None,
-            ModelType::OsmCpu => Some(NeighborGrid::new(scenario.field.size, 0.6)),
+            ModelType::OsmCpu => Some(NeighborGrid::new(
+                scenario.field.size,
+                args.neighbor_unit.unwrap_or(1.4),
+            )),
             _ => unreachable!(),
         };
 
@@ -163,18 +166,6 @@ impl OptimalStepsModel {
             let ix = (pos / grid.unit).as_ivec2() + 1;
             let ix = Index::new(ix.x, ix.y);
             let mut potential = 0.0;
-
-            // for j in -1..=1 {
-            //     for i in -1..=1 {
-            //         let ix = ix.add(i, j);
-            //         if let Some(neighbors) = grid.data.get(ix) {
-            //             for &id in neighbors.iter().filter(|i| **i != self_id as u32) {
-            //                 let delta = (pos - self.pedestrians[id as usize].pos).length();
-            //                 potential += potential_ped_from_distance(delta);
-            //             }
-            //         }
-            //     }
-            // }
 
             let shape = IVec2::new(grid.shape.1 as i32, grid.shape.0 as i32);
             let y_start = (ix.y - 1).max(0);

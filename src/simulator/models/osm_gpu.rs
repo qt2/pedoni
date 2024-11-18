@@ -31,7 +31,7 @@ pub struct OptimalStepsModelGpu {
 
 impl PedestrianModel for OptimalStepsModelGpu {
     fn new(
-        _args: &crate::args::Args,
+        args: &crate::args::Args,
         scenario: &crate::simulator::scenario::Scenario,
         field: &Field,
     ) -> Self {
@@ -70,7 +70,10 @@ impl PedestrianModel for OptimalStepsModelGpu {
         OptimalStepsModelGpu {
             positions: Vec::new(),
             destinations: Vec::new(),
-            neighbor_grid: Some(NeighborGrid::new(scenario.field.size, 0.6)),
+            neighbor_grid: Some(NeighborGrid::new(
+                scenario.field.size,
+                args.neighbor_unit.unwrap_or(1.4),
+            )),
             neighbor_grid_indices: Vec::new(),
             pq,
             field_potential_grids_buffer,
