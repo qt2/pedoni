@@ -3,18 +3,9 @@ use std::sync::Mutex;
 use glam::{IVec2, Vec2};
 use rayon::prelude::*;
 
-use crate::{
-    args::ModelType,
-    simulator::{
-        optim::{CircleBorder, Optimizer},
-        util::Index,
-        NeighborGrid, Simulator,
-    },
-};
+use crate::simulator::{util::Index, NeighborGrid, Simulator};
 
 use super::PedestrianModel;
-
-const R: f32 = 0.1;
 
 #[derive(Default)]
 pub struct SocialForceModel {
@@ -72,7 +63,7 @@ impl PedestrianModel for SocialForceModel {
     fn spawn_pedestrians(&mut self, new_pedestrians: Vec<super::Pedestrian>) {
         for p in new_pedestrians {
             self.pedestrians
-                .push(p.pos, p.destination as u32, Vec2::ZERO, 4.0);
+                .push(p.pos, p.destination as u32, Vec2::ZERO, 1.34);
         }
 
         if let Some(neighbor_grid) = &mut self.neighbor_grid {
@@ -144,12 +135,15 @@ impl PedestrianModel for SocialForceModel {
                                 if torso - distance >= 0.0 {}
 
                                 let vel_i = pedestrians.velocities[i];
-                                let b = ((distance + (difference - vel_i * 0.1).length()).powi(2)
-                                    - (vel_i.length() * 0.1).powi(2))
-                                .sqrt()
-                                    * 0.5;
+                                let t1 = difference - vel_i * 0.1;
+                                let t1_length = t1.length();
+                                let t2 = distance + t1_length;
+                                let b = (t2.powi(2) - (vel_i.length() * 0.1).powi(2)).sqrt() * 0.5;
 
-                                acc += direction;
+                                let nabla_b = t2 * (direction + t1 / t1_length) / (4.0 * b);
+                                let force = 2.1 / 0.3 * (-b / 0.3).exp() * nabla_b;
+
+                                acc += force;
                             }
                         }
                     }
