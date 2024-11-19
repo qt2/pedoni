@@ -16,7 +16,7 @@ use crate::simulator::{
     NeighborGrid, Simulator,
 };
 
-const LOCAL_WORK_SIZE: usize = 64;
+// const LOCAL_WORK_SIZE: usize = 64;
 
 pub struct OptimalStepsModelGpu {
     positions: Vec<Float2>,
@@ -24,6 +24,7 @@ pub struct OptimalStepsModelGpu {
     neighbor_grid: Option<NeighborGrid>,
     neighbor_grid_indices: Vec<u32>,
     pq: ProQue,
+    local_work_size: usize,
     field_potential_grids_buffer: Image<f32>,
     field_potential_sampler: Sampler,
     next_state: Mutex<Vec<Float2>>,
@@ -76,6 +77,7 @@ impl PedestrianModel for OptimalStepsModelGpu {
             )),
             neighbor_grid_indices: Vec::new(),
             pq,
+            local_work_size: args.work_size.unwrap_or(64),
             field_potential_grids_buffer,
             field_potential_sampler,
             next_state: Mutex::new(Vec::new()),
@@ -153,7 +155,7 @@ impl OptimalStepsModelGpu {
 
         let pq = &self.pq;
         let global_work_size =
-            (ped_count + LOCAL_WORK_SIZE - 1) / LOCAL_WORK_SIZE * LOCAL_WORK_SIZE;
+            (ped_count + self.local_work_size - 1) / self.local_work_size * self.local_work_size;
 
         let position_buffer = pq
             .buffer_builder()
@@ -193,7 +195,7 @@ impl OptimalStepsModelGpu {
             .arg(&neighbor_grid.unit)
             .arg(&next_position_buffer)
             .global_work_size(global_work_size)
-            .local_work_size(LOCAL_WORK_SIZE)
+            .local_work_size(self.local_work_size)
             .build()?;
 
         let mut event = Event::empty();

@@ -8,10 +8,13 @@ pub mod util;
 
 use std::{sync::Mutex, time::Instant};
 
-use crate::args::{Args, ModelType};
+use crate::args::{Args, Backend, ModelType};
 use diagnostic::{DiagnositcLog, StepMetrics};
 use field::Field;
-use models::{EmptyModel, OptimalStepsModel, OptimalStepsModelGpu, Pedestrian, PedestrianModel};
+use models::{
+    EmptyModel, OptimalStepsModel, OptimalStepsModelGpu, Pedestrian, PedestrianModel,
+    SocialForceModel,
+};
 pub use neighbor_grid::NeighborGrid;
 use scenario::Scenario;
 
@@ -42,9 +45,14 @@ impl Simulator {
     pub fn initialize(&mut self, scenario: Scenario, args: &Args) {
         let field = Field::from_scenario(&scenario, args.field_unit.unwrap_or(0.25));
         let model: Box<dyn PedestrianModel> = match args.model {
-            ModelType::OsmNoGrid => Box::new(OptimalStepsModel::new(args, &scenario, &field)),
-            ModelType::OsmCpu => Box::new(OptimalStepsModel::new(args, &scenario, &field)),
-            ModelType::OsmGpu => Box::new(OptimalStepsModelGpu::new(args, &scenario, &field)),
+            ModelType::Osm => match args.backend {
+                Backend::Cpu => Box::new(OptimalStepsModel::new(args, &scenario, &field)),
+                Backend::Gpu => Box::new(OptimalStepsModelGpu::new(args, &scenario, &field)),
+            },
+            ModelType::Sfm => match args.backend {
+                Backend::Cpu => Box::new(SocialForceModel::new(args, &scenario, &field)),
+                Backend::Gpu => unimplemented!(),
+            },
         };
 
         self.scenario = scenario;

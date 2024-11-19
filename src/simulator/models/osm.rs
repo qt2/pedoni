@@ -3,13 +3,10 @@ use std::sync::Mutex;
 use glam::{IVec2, Vec2};
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
-use crate::{
-    args::ModelType,
-    simulator::{
-        optim::{CircleBorder, Optimizer},
-        util::Index,
-        NeighborGrid, Simulator,
-    },
+use crate::simulator::{
+    optim::{CircleBorder, Optimizer},
+    util::Index,
+    NeighborGrid, Simulator,
 };
 
 use super::PedestrianModel;
@@ -29,14 +26,8 @@ impl PedestrianModel for OptimalStepsModel {
         scenario: &crate::simulator::scenario::Scenario,
         _field: &crate::simulator::field::Field,
     ) -> Self {
-        let neighbor_grid = match args.model {
-            ModelType::OsmNoGrid => None,
-            ModelType::OsmCpu => Some(NeighborGrid::new(
-                scenario.field.size,
-                args.neighbor_unit.unwrap_or(1.4),
-            )),
-            _ => unreachable!(),
-        };
+        let neighbor_grid = (!args.no_grid)
+            .then(|| NeighborGrid::new(scenario.field.size, args.neighbor_unit.unwrap_or(1.4)));
 
         OptimalStepsModel {
             pedestrians: Vec::new(),

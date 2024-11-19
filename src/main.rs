@@ -47,6 +47,13 @@ fn main() -> anyhow::Result<()> {
 
     let args = Args::parse();
 
+    info!(
+        "Model type: {:?} ({}), Backend: {:?}",
+        args.model,
+        if args.no_grid { "no grid" } else { "with grid" },
+        args.backend,
+    );
+
     STATE.lock().unwrap().playback_speed = args.speed;
 
     let scenario: Scenario = toml::from_str(&fs::read_to_string(&args.scenario)?)?;

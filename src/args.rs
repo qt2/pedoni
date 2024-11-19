@@ -1,15 +1,15 @@
 use std::path::PathBuf;
 
-// use serde::Deserialize;
-
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]
 pub enum ModelType {
-    #[value(name = "nogrid")]
-    OsmNoGrid,
-    #[value(name = "cpu")]
-    OsmCpu,
-    #[value(name = "gpu")]
-    OsmGpu,
+    Sfm,
+    Osm,
+}
+
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+pub enum Backend {
+    Cpu,
+    Gpu,
 }
 
 #[derive(Debug, clap::Parser)]
@@ -21,8 +21,14 @@ pub struct Args {
     #[arg(short = 'H', long)]
     pub headless: bool,
     /// Model type
-    #[arg(value_enum, short, long, default_value_t=ModelType::OsmCpu)]
+    #[arg(value_enum, short, long, default_value_t=ModelType::Osm)]
     pub model: ModelType,
+    /// Backend
+    #[arg(value_enum, short, long, default_value_t=Backend::Cpu)]
+    pub backend: Backend,
+    /// Do not use grid for acceleration
+    #[arg(long)]
+    pub no_grid: bool,
     /// Max playback speed
     #[arg(short, long, default_value_t = 100.0)]
     pub speed: f32,
@@ -32,4 +38,7 @@ pub struct Args {
     /// Unit length of neighbor grid
     #[arg(long)]
     pub neighbor_unit: Option<f32>,
+    /// Local work size of GPU kernel
+    #[arg(long)]
+    pub work_size: Option<usize>,
 }
