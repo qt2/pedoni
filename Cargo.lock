@@ -3061,9 +3061,9 @@ dependencies = [
 
 [[package]]
 name = "pittore"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d7f33900e9836902479e44b5d429e99263e964ed6869971511fc2d0c093618d4"
+checksum = "ddbaec208eb363cde2b50aa9c130493238ad41ddb90c8d4be7e1a9869b06a30b"
 dependencies = [
  "bytemuck",
  "eframe",

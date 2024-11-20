@@ -13,7 +13,7 @@ use diagnostic::{DiagnositcLog, StepMetrics};
 use field::Field;
 use models::{
     EmptyModel, OptimalStepsModel, OptimalStepsModelGpu, Pedestrian, PedestrianModel,
-    SocialForceModel,
+    SocialForceModel, SocialForceModelGpu,
 };
 pub use neighbor_grid::NeighborGrid;
 use scenario::Scenario;
@@ -51,7 +51,7 @@ impl Simulator {
             },
             ModelType::Sfm => match args.backend {
                 Backend::Cpu => Box::new(SocialForceModel::new(args, &scenario, &field)),
-                Backend::Gpu => unimplemented!(),
+                Backend::Gpu => Box::new(SocialForceModelGpu::new(args, &scenario, &field)),
             },
         };
 

@@ -30,7 +30,7 @@ num-traits = "0.2.19"
 ocl = "0.19.7"
 once_cell = "1.19.0"
 ordered-float = "4.2.2"
-pittore = { version = "0.1" }
+pittore = "0.1.1"
 pollster = "0.4.0"
 rayon = "1.10.0"
 rfd = "0.15.0"

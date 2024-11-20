@@ -207,7 +207,7 @@ impl OptimalStepsModel {
         //     .sum();
 
         let p_obstacles = {
-            let delta = sim.field.get_distance_from_obstacles(pos);
+            let delta = sim.field.get_obstacle_distance(pos);
 
             if delta > H_O {
                 0.0

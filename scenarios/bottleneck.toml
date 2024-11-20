@@ -1,27 +1,27 @@
 [field]
-size = [400, 400]
+size = [200, 200]
 
 [[waypoints]]
-line = [[10, 10], [10, 390]]
+line = [[10, 10], [10, 190]]
 
 [[waypoints]]
-line = [[390, 10], [390, 390]]
+line = [[190, 10], [190, 190]]
 
 [[obstacles]]
-line = [[100, 0], [200, 180]]
-width = 10
+line = [[50, 0], [100, 90]]
+width = 5
 
 [[obstacles]]
-line = [[100, 400], [200, 220]]
-width = 10
+line = [[50, 200], [100, 110]]
+width = 5
 
 [[obstacles]]
-line = [[300, 0], [200, 180]]
-width = 10
+line = [[150, 0], [100, 90]]
+width = 5
 
 [[obstacles]]
-line = [[300, 400], [200, 220]]
-width = 10
+line = [[150, 200], [100, 110]]
+width = 5
 
 [[pedestrians]]
 origin = 0

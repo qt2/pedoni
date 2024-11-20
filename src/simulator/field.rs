@@ -3,7 +3,7 @@ use std::{cmp::Reverse, collections::BinaryHeap};
 
 use geo::LineString;
 use geo_rasterize::{BinaryBuilder, LabelBuilder};
-use glam::{vec2, IVec2, Mat3, Mat3A, Vec2, Vec3A};
+use glam::{vec2, Vec2};
 use ndarray::{s, Array2};
 use ordered_float::NotNan;
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
@@ -245,6 +245,7 @@ impl Field {
         builder.build()
     }
 
+    /// Get field potential against the waypoint.
     pub fn get_field_potential(&self, waypoint_id: usize, position: Vec2) -> f32 {
         let position = position / self.unit - Vec2::splat(0.5);
 
@@ -252,22 +253,15 @@ impl Field {
         util::bilinear(potential, position)
     }
 
-    pub fn get_distance_from_obstacles(&self, position: Vec2) -> f32 {
+    /// Get distance from the nearest obstacle.
+    pub fn get_obstacle_distance(&self, position: Vec2) -> f32 {
         let position = position / self.unit - Vec2::splat(0.5);
         util::bilinear(&self.distance_from_obstacle, position)
     }
 
+    /// Calculate field potential gradient.
     pub fn get_potential_grad(&self, waypoint_id: usize, position: Vec2) -> Vec2 {
-        // const S_X: Mat3A = Mat3A::from_cols(
-        //     Vec3A::new(1.0, 0.0, -1.0),
-        //     Vec3A::new(2.0, 0.0, -2.0),
-        //     Vec3A::new(1.0, 0.0, -1.0),
-        // );
-        // const S_Y: Mat3A = Mat3A::from_cols(
-        //     Vec3A::new(1.0, 2.0, 1.0),
-        //     Vec3A::new(0.0, 0.0, 0.0),
-        //     Vec3A::new(-1.0, -2.0, -1.0),
-        // );
+        // Calculate potential gradient by Sobel filter
 
         let potential = &self.potentials[waypoint_id];
         let position = position / self.unit - Vec2::splat(0.5);
@@ -286,6 +280,34 @@ impl Field {
             for y in [-1, 1] {
                 let position = position + vec2(x as f32, y as f32);
                 let u = util::bilinear(&potential, position);
+                let s_y = (if x == 0 { 2.0 } else { 1.0 }) * -y as f32;
+                grad.y += u * s_y;
+            }
+        }
+
+        grad
+    }
+
+    /// Calculate gradient of distance from obstacles.
+    pub fn get_obstacle_distance_grad(&self, position: Vec2) -> Vec2 {
+        // Calculate potential gradient by Sobel filter
+
+        let position = position / self.unit - Vec2::splat(0.5);
+        let mut grad = Vec2::ZERO;
+
+        for y in -1..=1 {
+            for x in [-1, 1] {
+                let position = position + vec2(x as f32, y as f32);
+                let u = util::bilinear(&self.distance_from_obstacle, position);
+                let s_x = (if y == 0 { 2.0 } else { 1.0 }) * -x as f32;
+                grad.x += u * s_x;
+            }
+        }
+
+        for x in -1..=1 {
+            for y in [-1, 1] {
+                let position = position + vec2(x as f32, y as f32);
+                let u = util::bilinear(&self.distance_from_obstacle, position);
                 let s_y = (if x == 0 { 2.0 } else { 1.0 }) * -y as f32;
                 grad.y += u * s_y;
             }

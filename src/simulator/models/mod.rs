@@ -1,6 +1,7 @@
 mod osm;
 mod osm_gpu;
 mod sfm;
+mod sfm_gpu;
 
 use glam::Vec2;
 
@@ -8,7 +9,10 @@ use super::{field::Field, scenario::Scenario, Simulator};
 use crate::args::Args;
 
 #[allow(unused)]
-pub use self::{osm::OptimalStepsModel, osm_gpu::OptimalStepsModelGpu, sfm::SocialForceModel};
+pub use self::{
+    osm::OptimalStepsModel, osm_gpu::OptimalStepsModelGpu, sfm::SocialForceModel,
+    sfm_gpu::SocialForceModelGpu,
+};
 
 pub trait PedestrianModel: Send + Sync {
     fn new(_args: &Args, _scenario: &Scenario, _field: &Field) -> Self

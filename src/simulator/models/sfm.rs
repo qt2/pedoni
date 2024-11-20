@@ -131,8 +131,10 @@ impl PedestrianModel for SocialForceModel {
                                 let distance = distance_squared.sqrt();
                                 let direction = difference.normalize();
 
-                                let torso = 2.0 * 0.4;
-                                if torso - distance >= 0.0 {}
+                                if distance <= 0.4 {
+                                    acc += 1000.0 * direction;
+                                    continue;
+                                }
 
                                 let vel_i = pedestrians.velocities[i];
                                 let t1 = difference - vel_i * 0.1;
@@ -148,6 +150,16 @@ impl PedestrianModel for SocialForceModel {
                         }
                     }
                 }
+
+                // calculate force from obstacles.
+                let distance = sim.field.get_obstacle_distance(pos);
+                let direction = -sim.field.get_obstacle_distance_grad(pos).normalize();
+                let force = if distance >= 0.4 {
+                    10.0 * 0.2 * (-distance / 0.2).exp() * direction
+                } else {
+                    10000.0 * direction
+                };
+                acc += force;
 
                 acc
             })
