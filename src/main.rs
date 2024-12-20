@@ -131,12 +131,7 @@ fn main() -> anyhow::Result<()> {
             thread::sleep(Duration::from_millis(100));
         }
     } else {
-        eframe::run_native(
-            "Pedoni",
-            pittore::pittore_eframe_options(),
-            Box::new(|cc| Ok(Box::new(Renderer::new(cc)))),
-        )
-        .unwrap();
+        pittore::run("Pedoni", Renderer::default());
     }
 
     Ok(())
