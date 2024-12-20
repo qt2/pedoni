@@ -1957,6 +1957,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "pedoni-simulator"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "assert_float_eq",
+ "fastrand",
+ "fastrand-contrib",
+ "geo 0.28.0",
+ "geo-rasterize",
+ "glam",
+ "log",
+ "ndarray",
+ "num-traits 0.2.19",
+ "ocl",
+ "ordered-float",
+ "rayon",
+ "serde",
+ "thin-vec",
+ "toml",
+]
+
+[[package]]
 name = "percent-encoding"
 version = "2.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
