@@ -98,7 +98,8 @@ impl FieldBuilder {
         let mut distance_from_obstacle = obstacle_exist.map(|&obs| if obs { 0.0 } else { 1e24 });
         apply_fmm(&mut distance_from_obstacle, &Array2::from_elem(shape, unit));
 
-        let slowness = distance_from_obstacle.map(|&d| (1e4 * (-10.0 * d).exp() + 1.0) * unit);
+        // let slowness = distance_from_obstacle.map(|&d| (1e4 * (-10.0 * d).exp() + 1.0) * unit);
+        let slowness = obstacle_exist.map(|&d| if d { 1e4 } else { 1.0 });
         potentials.par_iter_mut().for_each(|potential| {
             apply_fmm(potential, &slowness);
         });

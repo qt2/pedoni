@@ -109,9 +109,9 @@ impl PedestrianModel for SocialForceModel {
 
                     let shape = IVec2::new(grid.shape.1 as i32, grid.shape.0 as i32);
                     let y_start = (ix.y - 1).max(0);
-                    let y_end = (ix.y + 1).min(shape.y);
+                    let y_end = (ix.y + 1).min(shape.y - 1);
                     let x_start = (ix.x - 1).max(0);
-                    let x_end = (ix.x + 1).min(shape.x);
+                    let x_end = (ix.x + 1).min(shape.x - 1);
 
                     for y in y_start..=y_end {
                         let offset = y * shape.x;
