@@ -64,7 +64,6 @@ impl PedestrianModel for EmptyModel {
 /// Pedestrian instance
 #[derive(Debug, Clone)]
 pub struct Pedestrian {
-    pub active: bool,
     pub pos: Vec2,
     pub destination: usize,
 }
@@ -72,7 +71,6 @@ pub struct Pedestrian {
 impl Default for Pedestrian {
     fn default() -> Self {
         Pedestrian {
-            active: true,
             pos: Vec2::default(),
             destination: 0,
         }

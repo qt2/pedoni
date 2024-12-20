@@ -2,47 +2,27 @@ use std::sync::Mutex;
 
 use glam::{IVec2, Vec2};
 use rayon::prelude::*;
+use soa_derive::StructOfArray;
 
-use crate::{util::Index, NeighborGrid, Simulator, SimulatorOptions};
+use crate::{neighbor_grid::NeighborGrid, util::Index, Simulator, SimulatorOptions};
 
 use super::PedestrianModel;
 
 #[derive(Default)]
 pub struct SocialForceModel {
-    pedestrians: Pedestrians,
+    pedestrians: PedestrianVec,
     neighbor_grid: Option<NeighborGrid>,
     neighbor_grid_indices: Vec<u32>,
     next_state: Mutex<Vec<Vec2>>,
 }
 
-#[derive(Debug, Default, Clone)]
-pub struct Pedestrians {
-    positions: Vec<Vec2>,
-    destinations: Vec<u32>,
-    velocities: Vec<Vec2>,
-    desired_speeds: Vec<f32>,
-}
-
-impl Pedestrians {
-    pub fn push(&mut self, position: Vec2, destination: u32, velocity: Vec2, desired_speed: f32) {
-        self.positions.push(position);
-        self.destinations.push(destination);
-        self.velocities.push(velocity);
-        self.desired_speeds.push(desired_speed);
-    }
-
-    pub fn copy(&mut self, other: &Pedestrians, index: usize) {
-        self.push(
-            other.positions[index],
-            other.destinations[index],
-            other.velocities[index],
-            other.desired_speeds[index],
-        );
-    }
-
-    pub fn len(&self) -> usize {
-        self.positions.len()
-    }
+#[derive(Debug, Default, Clone, StructOfArray)]
+#[soa_derive(Debug, Default)]
+pub struct Pedestrian {
+    position: Vec2,
+    destination: u32,
+    velocity: Vec2,
+    desired_speed: f32,
 }
 
 impl PedestrianModel for SocialForceModel {
@@ -63,21 +43,26 @@ impl PedestrianModel for SocialForceModel {
 
     fn spawn_pedestrians(&mut self, new_pedestrians: Vec<super::Pedestrian>) {
         for p in new_pedestrians {
-            self.pedestrians
-                .push(p.pos, p.destination as u32, Vec2::ZERO, 1.34);
+            self.pedestrians.push(Pedestrian {
+                position: p.pos,
+                destination: p.destination as u32,
+                velocity: Vec2::ZERO,
+                desired_speed: 1.34,
+            });
         }
 
         if let Some(neighbor_grid) = &mut self.neighbor_grid {
-            neighbor_grid.update(self.pedestrians.positions.iter().cloned());
+            neighbor_grid.update(self.pedestrians.position.iter().cloned());
 
-            let mut sorted_pedestrians = Pedestrians::default();
+            let mut sorted_pedestrians = PedestrianVec::default();
             self.neighbor_grid_indices = Vec::with_capacity(neighbor_grid.data.len() + 1);
             self.neighbor_grid_indices.push(0);
             let mut index = 0;
 
             for cell in neighbor_grid.data.iter() {
                 for j in 0..cell.len() {
-                    sorted_pedestrians.copy(&self.pedestrians, cell[j] as usize);
+                    sorted_pedestrians
+                        .push(self.pedestrians.get(cell[j] as usize).unwrap().to_owned());
                 }
                 index += cell.len();
                 self.neighbor_grid_indices.push(index as u32);
@@ -92,10 +77,13 @@ impl PedestrianModel for SocialForceModel {
         let accelerations: Vec<Vec2> = (0..pedestrians.len())
             .into_par_iter()
             .map(|id| {
-                let pos = pedestrians.positions[id];
-                let vel = pedestrians.velocities[id];
-                let destination = pedestrians.destinations[id] as usize;
-                let desired_speed = pedestrians.desired_speeds[id];
+                let Pedestrian {
+                    position: pos,
+                    destination,
+                    velocity: vel,
+                    desired_speed,
+                } = pedestrians.get(id).unwrap().to_owned();
+                let destination = destination as usize;
 
                 let mut acc = Vec2::ZERO;
 
@@ -123,7 +111,7 @@ impl PedestrianModel for SocialForceModel {
 
                         for i in i_start..i_end {
                             if i != id {
-                                let difference = pos - self.pedestrians.positions[i];
+                                let difference = pos - self.pedestrians.position[i];
                                 let distance_squared = difference.length_squared();
                                 if distance_squared > 4.0 {
                                     continue;
@@ -137,7 +125,7 @@ impl PedestrianModel for SocialForceModel {
                                     continue;
                                 }
 
-                                let vel_i = pedestrians.velocities[i];
+                                let vel_i = pedestrians.velocity[i];
                                 let t1 = difference - vel_i * 0.1;
                                 let t1_length = t1.length();
                                 let t2 = distance + t1_length;
@@ -174,9 +162,9 @@ impl PedestrianModel for SocialForceModel {
         let pedestrians = &mut self.pedestrians;
 
         for i in 0..pedestrians.len() {
-            let pos = &mut pedestrians.positions[i];
-            let vel = &mut pedestrians.velocities[i];
-            let desired_speed = pedestrians.desired_speeds[i];
+            let pos = &mut pedestrians.position[i];
+            let vel = &mut pedestrians.velocity[i];
+            let desired_speed = pedestrians.desired_speed[i];
 
             let vel_prev = *vel;
             *vel += accelerations[i] * 0.1;
@@ -186,11 +174,11 @@ impl PedestrianModel for SocialForceModel {
     }
 
     fn list_pedestrians(&self) -> Vec<super::Pedestrian> {
-        (0..self.pedestrians.len())
-            .map(|i| super::Pedestrian {
-                active: true,
-                pos: self.pedestrians.positions[i],
-                destination: self.pedestrians.destinations[i] as usize,
+        self.pedestrians
+            .iter()
+            .map(|p| super::Pedestrian {
+                pos: *p.position,
+                destination: *p.destination as usize,
             })
             .collect()
     }

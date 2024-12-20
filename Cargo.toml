@@ -1,4 +1,5 @@
 [workspace]
+resolver = "2"
 members = ["pedoni", "pedoni-*"]
 
 [workspace.metadata]
@@ -9,3 +10,6 @@ edition = "2021"
 [workspace.dependencies]
 pedoni = { path = "./pedoni", version = "0.1.0" }
 pedoni-simulator = { path = "./pedoni-simulator", version = "0.1.0" }
+
+[profile.dev]
+opt-level = 1

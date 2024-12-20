@@ -8,16 +8,18 @@ use ocl::{
     prm::{Float2, Int2},
     Event, Image, MemFlags, ProQue, Sampler,
 };
+use soa_derive::StructOfArray;
 
 use crate::{
+    neighbor_grid::NeighborGrid,
     util::{ToGlam, ToOcl},
-    NeighborGrid, Simulator, SimulatorOptions,
+    Simulator, SimulatorOptions,
 };
 
 use super::PedestrianModel;
 
 pub struct SocialForceModelGpu {
-    pedestrians: Pedestrians,
+    pedestrians: PedestrianVec,
     neighbor_grid: Option<NeighborGrid>,
     neighbor_grid_indices: Vec<u32>,
     next_state: Mutex<Vec<Float2>>,
@@ -28,40 +30,13 @@ pub struct SocialForceModelGpu {
     field_potential_sampler: Sampler,
 }
 
-#[derive(Debug, Default, Clone)]
-pub struct Pedestrians {
-    positions: Vec<Float2>,
-    destinations: Vec<u32>,
-    velocities: Vec<Float2>,
-    desired_speeds: Vec<f32>,
-}
-
-impl Pedestrians {
-    pub fn push(
-        &mut self,
-        position: Float2,
-        destination: u32,
-        velocity: Float2,
-        desired_speed: f32,
-    ) {
-        self.positions.push(position);
-        self.destinations.push(destination);
-        self.velocities.push(velocity);
-        self.desired_speeds.push(desired_speed);
-    }
-
-    pub fn copy(&mut self, other: &Pedestrians, index: usize) {
-        self.push(
-            other.positions[index],
-            other.destinations[index],
-            other.velocities[index],
-            other.desired_speeds[index],
-        );
-    }
-
-    pub fn len(&self) -> usize {
-        self.positions.len()
-    }
+#[derive(Debug, Clone, StructOfArray)]
+#[soa_derive(Debug, Default)]
+pub struct Pedestrian {
+    position: Float2,
+    destination: u32,
+    velocity: Float2,
+    desired_speed: f32,
 }
 
 impl PedestrianModel for SocialForceModelGpu {
@@ -120,21 +95,26 @@ impl PedestrianModel for SocialForceModelGpu {
 
     fn spawn_pedestrians(&mut self, new_pedestrians: Vec<super::Pedestrian>) {
         for p in new_pedestrians {
-            self.pedestrians
-                .push(p.pos.to_ocl(), p.destination as u32, Float2::zero(), 1.34);
+            self.pedestrians.push(Pedestrian {
+                position: p.pos.to_ocl(),
+                destination: p.destination as u32,
+                velocity: Float2::zero(),
+                desired_speed: 1.34,
+            });
         }
 
         if let Some(neighbor_grid) = &mut self.neighbor_grid {
-            neighbor_grid.update(self.pedestrians.positions.iter().map(|p| p.to_glam()));
+            neighbor_grid.update(self.pedestrians.position.iter().map(|p| p.to_glam()));
 
-            let mut sorted_pedestrians = Pedestrians::default();
+            let mut sorted_pedestrians = PedestrianVec::default();
             self.neighbor_grid_indices = Vec::with_capacity(neighbor_grid.data.len() + 1);
             self.neighbor_grid_indices.push(0);
             let mut index = 0;
 
             for cell in neighbor_grid.data.iter() {
                 for j in 0..cell.len() {
-                    sorted_pedestrians.copy(&self.pedestrians, cell[j] as usize);
+                    sorted_pedestrians
+                        .push(self.pedestrians.get(cell[j] as usize).unwrap().to_owned());
                 }
                 index += cell.len();
                 self.neighbor_grid_indices.push(index as u32);
@@ -155,16 +135,16 @@ impl PedestrianModel for SocialForceModelGpu {
         let next_state = self.next_state.lock().unwrap();
 
         for i in 0..pedestrians.len() {
-            pedestrians.positions[i] = next_state[i];
+            pedestrians.position[i] = next_state[i];
         }
     }
 
     fn list_pedestrians(&self) -> Vec<super::Pedestrian> {
-        (0..self.pedestrians.len())
-            .map(|i| super::Pedestrian {
-                active: true,
-                pos: self.pedestrians.positions[i].to_glam(),
-                destination: self.pedestrians.destinations[i] as usize,
+        self.pedestrians
+            .iter()
+            .map(|p| super::Pedestrian {
+                pos: p.position.to_glam(),
+                destination: *p.destination as usize,
             })
             .collect()
     }
@@ -195,13 +175,13 @@ impl SocialForceModelGpu {
             .buffer_builder()
             .flags(MemFlags::READ_ONLY)
             .len(ped_count)
-            .copy_host_slice(&self.pedestrians.positions)
+            .copy_host_slice(&self.pedestrians.position)
             .build()?;
         let destination_buffer = pq
             .buffer_builder()
             .flags(MemFlags::READ_ONLY)
             .len(ped_count)
-            .copy_host_slice(&self.pedestrians.destinations)
+            .copy_host_slice(&self.pedestrians.destination)
             .build()?;
         let neighbor_grid_indices_buffer = pq
             .buffer_builder()

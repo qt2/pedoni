@@ -2,7 +2,6 @@ pub mod diagnostic;
 pub mod field;
 mod models;
 mod neighbor_grid;
-pub mod optim;
 pub mod scenario;
 pub mod util;
 
@@ -11,7 +10,6 @@ use std::{sync::Mutex, time::Instant};
 use diagnostic::{DiagnositcLog, StepMetrics};
 use field::Field;
 use models::{EmptyModel, Pedestrian, PedestrianModel, SocialForceModel, SocialForceModelGpu};
-pub use neighbor_grid::NeighborGrid;
 use scenario::Scenario;
 
 /// Simulator instance.

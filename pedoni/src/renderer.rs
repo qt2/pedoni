@@ -66,16 +66,10 @@ impl PittoreApp for Renderer {
         c.draw_lines(waypoints);
 
         // Draw pedestrians.
-        c.draw_circles(
-            simulator
-                .list_pedestrians()
-                .iter()
-                .filter(|ped| ped.active)
-                .map(|ped| Instance2d {
-                    transform: Transform2d::from_translation(ped.pos).with_scale(Vec2::splat(0.2)),
-                    color: COLORS[ped.destination % COLORS.len()],
-                    ..Default::default()
-                }),
-        );
+        c.draw_circles(simulator.list_pedestrians().iter().map(|ped| Instance2d {
+            transform: Transform2d::from_translation(ped.pos).with_scale(Vec2::splat(0.2)),
+            color: COLORS[ped.destination % COLORS.len()],
+            ..Default::default()
+        }));
     }
 }
