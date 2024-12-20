@@ -25,7 +25,7 @@ pub struct Simulator {
 }
 
 impl Simulator {
-    pub fn new_empty() -> Self {
+    pub fn new() -> Self {
         Simulator {
             scenario: Scenario::default(),
             field: Field::default(),
