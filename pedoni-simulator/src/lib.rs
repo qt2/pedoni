@@ -9,6 +9,7 @@ use std::{sync::Mutex, time::Instant};
 
 use diagnostic::{DiagnositcLog, StepMetrics};
 use field::Field;
+use log::info;
 use models::{EmptyModel, Pedestrian, PedestrianModel, SocialForceModel, SocialForceModelGpu};
 use scenario::Scenario;
 
@@ -45,7 +46,9 @@ impl Simulator {
         self.field = field;
         self.model = model;
         self.spawn_rng = fastrand::Rng::with_seed(0);
-        // self.diagnostic_log.model = format!("{:?}", args.model);
+
+        info!("Simulator initialization finished");
+        info!("Simulator options: {options:#?}");
     }
 
     pub fn spawn_pedestrians(&mut self) {
@@ -107,6 +110,7 @@ impl Simulator {
 }
 
 /// Simulator options.
+#[derive(Debug)]
 pub struct SimulatorOptions {
     /// Backend type: CPU or GPU    
     pub backend: Backend,

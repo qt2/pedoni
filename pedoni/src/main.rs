@@ -13,7 +13,7 @@ use args::Args;
 use clap::Parser;
 use log::{info, warn};
 use once_cell::sync::Lazy;
-use pedoni_simulator::{scenario::Scenario, Simulator, SimulatorOptions};
+use pedoni_simulator::{scenario::Scenario, Simulator};
 
 use crate::renderer::Renderer;
 
@@ -42,26 +42,14 @@ fn main() -> anyhow::Result<()> {
     }
 
     let args = Args::parse();
-
-    info!(
-        "Model type: {:?} ({}), Backend: {:?}",
-        args.model,
-        if args.no_grid { "no grid" } else { "with grid" },
-        args.backend,
-    );
-
     STATE.lock().unwrap().playback_speed = args.speed;
 
     let scenario: Scenario = toml::from_str(&fs::read_to_string(&args.scenario)?)?;
     let field_size = scenario.field.size;
-    info!("Loaded scenario file: {:?}", args.scenario.display());
 
     {
         let mut simulator = SIMULATOR.write().unwrap();
-        let options = SimulatorOptions::default();
-        simulator.initialize(scenario, &options);
-
-        info!("Model initialization finished");
+        simulator.initialize(scenario, &args.to_simulator_options());
     }
 
     thread::spawn(move || loop {
