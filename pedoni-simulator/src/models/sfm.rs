@@ -4,7 +4,12 @@ use glam::{IVec2, Vec2};
 use rayon::prelude::*;
 use soa_derive::StructOfArray;
 
-use crate::{field::Field, neighbor_grid::NeighborGrid, util::Index, Simulator, SimulatorOptions};
+use crate::{
+    field::Field,
+    neighbor_grid::NeighborGrid,
+    util::{distance_from_line, Index},
+    Simulator, SimulatorOptions,
+};
 
 use super::PedestrianModel;
 
@@ -99,7 +104,7 @@ impl PedestrianModel for SocialForceModel {
 
                 // calculate force from other pedestrians.
                 if let Some(grid) = &self.neighbor_grid {
-                    let ix = (pos / grid.unit).as_ivec2() + 1;
+                    let ix = (pos / grid.unit).as_ivec2();
                     let ix = Index::new(ix.x, ix.y);
 
                     let shape = IVec2::new(grid.shape.1 as i32, grid.shape.0 as i32);
@@ -151,16 +156,26 @@ impl PedestrianModel for SocialForceModel {
                 }
 
                 // calculate force from obstacles.
-                let distance = sim.field.get_obstacle_distance(pos);
-                let direction = -sim.field.get_obstacle_distance_grad(pos).normalize();
-                // let force = if distance >= 0.1 {
+                if sim.options.use_distance_map {
+                    let distance = sim.field.get_obstacle_distance(pos);
+                    let direction = -sim.field.get_obstacle_distance_grad(pos).normalize();
+                    let force = 10.0 * 0.2 * (-distance / 0.2).exp() * direction;
+                    acc += force;
+                } else {
+                    for obs in &sim.scenario.obstacles {
+                        let diff = distance_from_line(pos, obs.line);
+                        let distance = diff.length();
+                        let direction = diff.normalize();
+                        let force = 10.0 * 0.2 * (-distance / 0.2).exp() * direction;
+                        acc += force;
+                    }
+                }
+
+                // let force = if distance >= 0.05 {
                 //     10.0 * 0.2 * (-distance / 0.2).exp() * direction
                 // } else {
                 //     1000.0 * direction
                 // };
-                let force = 10.0 * 0.2 * (-distance / 0.2).exp() * direction;
-
-                acc += force;
 
                 acc
             })
@@ -179,6 +194,10 @@ impl PedestrianModel for SocialForceModel {
             let desired_speed = pedestrians.desired_speed[i];
 
             let vel_prev = *vel;
+            let mut v = vel_prev + accelerations[i] * 0.1;
+            v = v.clamp_length_max(desired_speed * 1.3);
+            let p = *pos + (v + vel_prev) * 0.05;
+
             *vel += accelerations[i] * 0.1;
             *vel = vel.clamp_length_max(desired_speed * 1.3);
             *pos += (*vel + vel_prev) * 0.05;

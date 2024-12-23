@@ -49,7 +49,7 @@ fn main() -> anyhow::Result<()> {
 
     {
         let mut simulator = SIMULATOR.write().unwrap();
-        simulator.initialize(scenario, &args.to_simulator_options());
+        simulator.initialize(scenario, args.to_simulator_options());
     }
 
     thread::spawn(move || loop {

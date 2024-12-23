@@ -23,11 +23,11 @@ impl NeighborGrid {
         self.data = Array2::from_elem(self.shape, ThinVec::new());
 
         for (i, pos) in positions.into_iter().enumerate() {
-            let ix = (pos / self.unit).as_ivec2() + 1;
+            let ix = (pos / self.unit).as_ivec2();
             let ix = Index::new(ix.x, ix.y);
             if let Some(neighbors) = self.data.get_mut(ix) {
                 if !neighbors.has_capacity() {
-                    neighbors.reserve(32);
+                    neighbors.reserve(8);
                 }
                 neighbors.push(i as u32);
             }

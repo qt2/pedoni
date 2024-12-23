@@ -51,22 +51,24 @@ impl Default for WaypointConfig {
     }
 }
 
-#[derive(Debug, Default, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct PedestrianConfig {
     pub origin: usize,
     pub destination: usize,
     pub spawn: PedestrianSpawnConfig,
 }
 
-#[derive(Debug, Default, Clone, Deserialize)]
-pub struct PedestrianSpawnConfig {
-    pub kind: PedestrianSpawnKind,
-    pub frequency: f64,
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum PedestrianSpawnConfig {
+    Periodic { frequency: f64 },
+    Once { count: i32 },
 }
 
 #[derive(Debug, Default, Clone, Deserialize)]
-#[serde(rename_all = "snake_case")]
+
 pub enum PedestrianSpawnKind {
     #[default]
     Periodic,
+    Once,
 }

@@ -11,10 +11,11 @@ use diagnostic::{DiagnositcLog, StepMetrics};
 use field::Field;
 use log::info;
 use models::{EmptyModel, Pedestrian, PedestrianModel, SocialForceModel, SocialForceModelGpu};
-use scenario::Scenario;
+use scenario::{PedestrianSpawnConfig, Scenario};
 
 /// Simulator instance.
 pub struct Simulator {
+    pub options: SimulatorOptions,
     pub scenario: Scenario,
     pub field: Field,
     pub model: Box<dyn PedestrianModel>,
@@ -26,6 +27,7 @@ pub struct Simulator {
 impl Simulator {
     pub fn new() -> Self {
         Simulator {
+            options: SimulatorOptions::default(),
             scenario: Scenario::default(),
             field: Field::default(),
             model: Box::new(EmptyModel),
@@ -35,20 +37,39 @@ impl Simulator {
         }
     }
 
-    pub fn initialize(&mut self, scenario: Scenario, options: &SimulatorOptions) {
+    pub fn initialize(&mut self, scenario: Scenario, options: SimulatorOptions) {
         let field = Field::from_scenario(&scenario, options.field_grid_unit);
         let model: Box<dyn PedestrianModel> = match options.backend {
-            Backend::Cpu => Box::new(SocialForceModel::new(options, &scenario, &field)),
-            Backend::Gpu => Box::new(SocialForceModelGpu::new(options, &scenario, &field)),
+            Backend::Cpu => Box::new(SocialForceModel::new(&options, &scenario, &field)),
+            Backend::Gpu => Box::new(SocialForceModelGpu::new(&options, &scenario, &field)),
         };
 
+        info!("Simulator options: {options:#?}");
+
+        self.options = options;
         self.scenario = scenario;
         self.field = field;
         self.model = model;
         self.spawn_rng = fastrand::Rng::with_seed(0);
 
         info!("Simulator initialization finished");
-        info!("Simulator options: {options:#?}");
+
+        let mut new_pedestrians = Vec::new();
+        for pedestrian in self.scenario.pedestrians.iter() {
+            if let PedestrianSpawnConfig::Once { count } = pedestrian.spawn {
+                let [p_1, p_2] = self.scenario.waypoints[pedestrian.origin].line;
+
+                for _ in 0..count {
+                    let pos = p_1.lerp(p_2, self.spawn_rng.f32());
+                    new_pedestrians.push(Pedestrian {
+                        pos,
+                        destination: pedestrian.destination,
+                        ..Default::default()
+                    })
+                }
+            }
+        }
+        self.model.spawn_pedestrians(&self.field, new_pedestrians);
     }
 
     pub fn spawn_pedestrians(&mut self) {
@@ -56,16 +77,18 @@ impl Simulator {
 
         let mut new_pedestrians = Vec::new();
         for pedestrian in self.scenario.pedestrians.iter() {
-            let [p_1, p_2] = self.scenario.waypoints[pedestrian.origin].line;
-            let count = util::poisson(pedestrian.spawn.frequency / 10.0, &mut self.spawn_rng);
+            if let PedestrianSpawnConfig::Periodic { frequency } = pedestrian.spawn {
+                let [p_1, p_2] = self.scenario.waypoints[pedestrian.origin].line;
+                let count = util::poisson(frequency / 10.0, &mut self.spawn_rng);
 
-            for _ in 0..count {
-                let pos = p_1.lerp(p_2, self.spawn_rng.f32());
-                new_pedestrians.push(Pedestrian {
-                    pos,
-                    destination: pedestrian.destination,
-                    ..Default::default()
-                })
+                for _ in 0..count {
+                    let pos = p_1.lerp(p_2, self.spawn_rng.f32());
+                    new_pedestrians.push(Pedestrian {
+                        pos,
+                        destination: pedestrian.destination,
+                        ..Default::default()
+                    })
+                }
             }
         }
         self.model.spawn_pedestrians(&self.field, new_pedestrians);

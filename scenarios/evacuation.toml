@@ -503,89 +503,154 @@ width = 0.2
 [[pedestrians]]
 origin = 2
 destination = 0
-spawn = {kind = "periodic", frequency = 0.5}
+spawn = {kind = "once", count = 2}
 
 [[pedestrians]]
 origin = 3
 destination = 0
-spawn = {kind = "periodic", frequency = 0.5}
+spawn = {kind = "once", count = 3}
 
 [[pedestrians]]
 origin = 4
 destination = 0
-spawn = {kind = "periodic", frequency = 0.5}
+spawn = {kind = "once", count = 4}
 
 [[pedestrians]]
 origin = 5
 destination = 0
-spawn = {kind = "periodic", frequency = 0.5}
+spawn = {kind = "once", count = 4}
 
 [[pedestrians]]
 origin = 6
 destination = 0
-spawn = {kind = "periodic", frequency = 0.5}
+spawn = {kind = "once", count = 3}
 
 [[pedestrians]]
 origin = 7
 destination = 0
-spawn = {kind = "periodic", frequency = 0.5}
+spawn = {kind = "once", count = 2}
 
 [[pedestrians]]
 origin = 8
 destination = 0
-spawn = {kind = "periodic", frequency = 0.5}
+spawn = {kind = "once", count = 2}
 
 [[pedestrians]]
 origin = 9
 destination = 0
-spawn = {kind = "periodic", frequency = 0.5}
+spawn = {kind = "once", count = 1}
 
 [[pedestrians]]
 origin = 10
-destination = 0
-spawn = {kind = "periodic", frequency = 0.5}
+destination = 1
+spawn = {kind = "once", count = 1}
 
 [[pedestrians]]
 origin = 11
-destination = 0
-spawn = {kind = "periodic", frequency = 0.5}
+destination = 1
+spawn = {kind = "once", count = 4}
 
 [[pedestrians]]
 origin = 12
-destination = 0
-spawn = {kind = "periodic", frequency = 0.5}
+destination = 1
+spawn = {kind = "once", count = 3}
 
 [[pedestrians]]
 origin = 13
-destination = 0
-spawn = {kind = "periodic", frequency = 0.5}
+destination = 1
+spawn = {kind = "once", count = 1}
 
 [[pedestrians]]
 origin = 14
-destination = 0
-spawn = {kind = "periodic", frequency = 0.5}
+destination = 1
+spawn = {kind = "once", count = 4}
 
 [[pedestrians]]
 origin = 15
-destination = 0
-spawn = {kind = "periodic", frequency = 0.5}
+destination = 1
+spawn = {kind = "once", count = 4}
 
 [[pedestrians]]
 origin = 16
-destination = 0
-spawn = {kind = "periodic", frequency = 0.5}
+destination = 1
+spawn = {kind = "once", count = 4}
 
 [[pedestrians]]
 origin = 17
 destination = 0
-spawn = {kind = "periodic", frequency = 0.5}
+spawn = {kind = "once", count = 2}
 
 [[pedestrians]]
 origin = 18
 destination = 0
-spawn = {kind = "periodic", frequency = 0.5}
+spawn = {kind = "once", count = 3}
 
 [[pedestrians]]
 origin = 19
 destination = 0
-spawn = {kind = "periodic", frequency = 0.5}
+spawn = {kind = "once", count = 4}
+
+[[pedestrians]]
+origin = 20
+destination = 1
+spawn = {kind = "once", count = 1}
+
+[[pedestrians]]
+origin = 21
+destination = 1
+spawn = {kind = "once", count = 1}
+
+[[pedestrians]]
+origin = 22
+destination = 1
+spawn = {kind = "once", count = 3}
+
+[[pedestrians]]
+origin = 23
+destination = 1
+spawn = {kind = "once", count = 4}
+
+[[pedestrians]]
+origin = 24
+destination = 1
+spawn = {kind = "once", count = 2}
+
+[[pedestrians]]
+origin = 25
+destination = 1
+spawn = {kind = "once", count = 1}
+
+[[pedestrians]]
+origin = 26
+destination = 1
+spawn = {kind = "once", count = 4}
+
+[[pedestrians]]
+origin = 27
+destination = 1
+spawn = {kind = "once", count = 3}
+
+[[pedestrians]]
+origin = 28
+destination = 1
+spawn = {kind = "once", count = 4}
+
+[[pedestrians]]
+origin = 29
+destination = 1
+spawn = {kind = "once", count = 2}
+
+[[pedestrians]]
+origin = 30
+destination = 1
+spawn = {kind = "once", count = 4}
+
+[[pedestrians]]
+origin = 31
+destination = 1
+spawn = {kind = "once", count = 3}
+
+[[pedestrians]]
+origin = 32
+destination = 1
+spawn = {kind = "once", count = 1}
