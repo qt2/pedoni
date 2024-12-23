@@ -1,25 +1,28 @@
-mod osm;
-mod osm_gpu;
+// mod osm;
+// mod osm_gpu;
 mod sfm;
 mod sfm_gpu;
 
 use glam::Vec2;
 
+use crate::SimulatorOptions;
+
 use super::{field::Field, scenario::Scenario, Simulator};
-use crate::args::Args;
+// use crate::args::Args;
 
 #[allow(unused)]
 pub use self::{
-    osm::OptimalStepsModel, osm_gpu::OptimalStepsModelGpu, sfm::SocialForceModel,
+    // osm::OptimalStepsModel, osm_gpu::OptimalStepsModelGpu,
+    sfm::SocialForceModel,
     sfm_gpu::SocialForceModelGpu,
 };
 
 pub trait PedestrianModel: Send + Sync {
-    fn new(_args: &Args, _scenario: &Scenario, _field: &Field) -> Self
+    fn new(options: &SimulatorOptions, _scenario: &Scenario, _field: &Field) -> Self
     where
         Self: Sized;
 
-    fn spawn_pedestrians(&mut self, new_pedestrians: Vec<Pedestrian>);
+    fn spawn_pedestrians(&mut self, field: &Field, new_pedestrians: Vec<Pedestrian>);
 
     fn calc_next_state(&self, sim: &Simulator);
 
@@ -33,11 +36,11 @@ pub trait PedestrianModel: Send + Sync {
 pub struct EmptyModel;
 
 impl PedestrianModel for EmptyModel {
-    fn new(_args: &Args, _scenario: &Scenario, _field: &Field) -> Self {
+    fn new(_options: &SimulatorOptions, _scenario: &Scenario, _field: &Field) -> Self {
         todo!()
     }
 
-    fn spawn_pedestrians(&mut self, _pedestrians: Vec<Pedestrian>) {
+    fn spawn_pedestrians(&mut self, _field: &Field, _pedestrians: Vec<Pedestrian>) {
         todo!()
     }
 
@@ -61,7 +64,6 @@ impl PedestrianModel for EmptyModel {
 /// Pedestrian instance
 #[derive(Debug, Clone)]
 pub struct Pedestrian {
-    pub active: bool,
     pub pos: Vec2,
     pub destination: usize,
 }
@@ -69,7 +71,6 @@ pub struct Pedestrian {
 impl Default for Pedestrian {
     fn default() -> Self {
         Pedestrian {
-            active: true,
             pos: Vec2::default(),
             destination: 0,
         }

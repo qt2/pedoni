@@ -118,23 +118,13 @@ impl ToOcl for Vec2 {
     }
 }
 
-// impl ToOcl for Vec2 {
-//     fn to_glam(&self) -> Vec2 {
-//         *self
-//     }
-
-//     fn to_ocl(&self) -> Float2 {
-//         Float2::new(self.x, self.y)
-//     }
-// }
-
 #[cfg(test)]
 mod tests {
     use assert_float_eq::*;
     use glam::vec2;
     use ndarray::array;
 
-    use crate::simulator::util::bilinear;
+    use crate::util::bilinear;
 
     use super::distance_from_line;
 

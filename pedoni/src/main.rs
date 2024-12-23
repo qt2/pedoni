@@ -1,6 +1,5 @@
 mod args;
 pub mod renderer;
-pub mod simulator;
 
 use std::{
     fs::{self, File},
@@ -14,14 +13,11 @@ use args::Args;
 use clap::Parser;
 use log::{info, warn};
 use once_cell::sync::Lazy;
-use serde::{Deserialize, Serialize};
+use pedoni_simulator::{scenario::Scenario, Simulator};
 
-use crate::{
-    renderer::Renderer,
-    simulator::{scenario::Scenario, Simulator},
-};
+use crate::renderer::Renderer;
 
-static SIMULATOR: Lazy<RwLock<Simulator>> = Lazy::new(|| RwLock::new(Simulator::empty()));
+static SIMULATOR: Lazy<RwLock<Simulator>> = Lazy::new(|| RwLock::new(Simulator::new()));
 static STATE: Mutex<State> = Mutex::new(State {
     paused: true,
     playback_speed: 4.0,
@@ -30,7 +26,7 @@ static SIG_INT: AtomicBool = AtomicBool::new(false);
 
 pub const DELTA_TIME: f32 = 0.1;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct State {
     pub paused: bool,
     pub playback_speed: f32,
@@ -46,24 +42,14 @@ fn main() -> anyhow::Result<()> {
     }
 
     let args = Args::parse();
-
-    info!(
-        "Model type: {:?} ({}), Backend: {:?}",
-        args.model,
-        if args.no_grid { "no grid" } else { "with grid" },
-        args.backend,
-    );
-
     STATE.lock().unwrap().playback_speed = args.speed;
 
     let scenario: Scenario = toml::from_str(&fs::read_to_string(&args.scenario)?)?;
-    info!("Loaded scenario file: {:?}", args.scenario.display());
+    let field_size = scenario.field.size;
 
     {
         let mut simulator = SIMULATOR.write().unwrap();
-        simulator.initialize(scenario, &args);
-
-        info!("Model initialization finished");
+        simulator.initialize(scenario, &args.to_simulator_options());
     }
 
     thread::spawn(move || loop {
@@ -131,7 +117,7 @@ fn main() -> anyhow::Result<()> {
             thread::sleep(Duration::from_millis(100));
         }
     } else {
-        pittore::run("Pedoni", Renderer::default());
+        pittore::run("Pedoni", Renderer::new(field_size));
     }
 
     Ok(())
