@@ -1988,9 +1988,9 @@ checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
 
 [[package]]
 name = "pittore"
-version = "0.2.2"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b93986a52fda29c08e9ad8cdc8a89faee11ed1cdb97a0d9c885f74bbace41d1a"
+checksum = "149699d5176487dc446538c148784e701ebecf1ba191a08b95892f075474874e"
 dependencies = [
  "bytemuck",
  "console_error_panic_hook",

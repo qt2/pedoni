@@ -114,43 +114,29 @@ impl FieldBuilder {
     }
 }
 
-/// Calculate potential against a waypoint using Sethian's [fast marching method](https://en.wikipedia.org/wiki/Fast_marching_method).    
-fn apply_fmm(potentials: &mut Array2<f32>, f: &Array2<f32>) {
-    use Status::*;
+/// Calculate potential against a waypoint using [fast marching method](https://en.wikipedia.org/wiki/Fast_marching_method).    
+fn apply_fmm(potential: &mut Array2<f32>, f: &Array2<f32>) {
     type Float = Reverse<NotNan<f32>>;
 
-    #[derive(Debug, Clone, PartialEq, PartialOrd)]
-    enum Status {
-        Far,
-        Considered,
-        Accepted,
-    }
+    assert_eq!(potential.dim(), f.dim());
 
-    // const F_DEF: f32 = 1.0;
-    // const F_OBS: f32 = 1e4;
-
-    let shape = potentials.dim();
-    let mut states = Array2::from_elem(shape, Status::Far);
+    let shape = potential.dim();
+    let mut accepted = Array2::from_elem(shape, false);
     let mut queue = BinaryHeap::<(Float, Index)>::new();
     let float = |x: f32| Reverse(NotNan::new(x).unwrap());
 
     for y in 0..shape.0 {
         for x in 0..shape.1 {
             let ix = Index::new(x, y);
-            if potentials[ix] == 0.0 {
-                states[ix] = Accepted;
+            if potential[ix] == 0.0 {
+                accepted[ix] = true;
 
                 for (j, i) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
                     let ix = ix.add(i, j);
-                    match states.get_mut(ix) {
-                        None | Some(Accepted) => {}
-                        Some(state) => {
-                            if potentials[ix] == 0.0 {
-                                continue;
-                            }
-                            *state = Considered;
+                    if let Some(potential) = potential.get_mut(ix) {
+                        if *potential != 0.0 {
                             let u = f[ix];
-                            potentials[ix] = u;
+                            *potential = u;
                             queue.push((float(u), ix));
                         }
                     }
@@ -160,28 +146,27 @@ fn apply_fmm(potentials: &mut Array2<f32>, f: &Array2<f32>) {
     }
 
     while let Some((u, ix)) = queue.pop() {
-        let u = u.0.into_inner();
-        if states[ix] == Accepted {
+        if accepted[ix] {
             continue;
         }
-        states[ix] = Accepted;
+
+        accepted[ix] = true;
+        let u = u.0.into_inner();
 
         for (j, i) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
             let ix = ix.add(i, j);
-
-            match states.get_mut(ix) {
-                None | Some(Accepted) => continue,
-                Some(state) => *state = Considered,
+            if matches!(accepted.get(ix), None | Some(true)) {
+                continue;
             }
 
             let f = f[ix];
             let (u1, u2) = if j == 0 {
-                let u2a = potentials.get(ix.add(0, -1)).cloned().unwrap_or(f32::MAX);
-                let u2b = potentials.get(ix.add(0, 1)).cloned().unwrap_or(f32::MAX);
+                let u2a = potential.get(ix.add(0, -1)).cloned().unwrap_or(f32::MAX);
+                let u2b = potential.get(ix.add(0, 1)).cloned().unwrap_or(f32::MAX);
                 (u, u2a.min(u2b))
             } else {
-                let u1a = potentials.get(ix.add(-1, 0)).cloned().unwrap_or(f32::MAX);
-                let u1b = potentials.get(ix.add(1, 0)).cloned().unwrap_or(f32::MAX);
+                let u1a = potential.get(ix.add(-1, 0)).cloned().unwrap_or(f32::MAX);
+                let u1b = potential.get(ix.add(1, 0)).cloned().unwrap_or(f32::MAX);
                 (u1a.min(u1b), u)
             };
 
@@ -198,8 +183,8 @@ fn apply_fmm(potentials: &mut Array2<f32>, f: &Array2<f32>) {
                 }
             };
 
-            if u < potentials[ix] {
-                potentials[ix] = u;
+            if u < potential[ix] {
+                potential[ix] = u;
                 queue.push((float(u), ix));
             }
         }

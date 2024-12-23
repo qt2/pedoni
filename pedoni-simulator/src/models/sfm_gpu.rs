@@ -11,6 +11,7 @@ use ocl::{
 use soa_derive::StructOfArray;
 
 use crate::{
+    field::Field,
     neighbor_grid::NeighborGrid,
     util::{ToGlam, ToOcl},
     Simulator, SimulatorOptions,
@@ -93,7 +94,7 @@ impl PedestrianModel for SocialForceModelGpu {
         }
     }
 
-    fn spawn_pedestrians(&mut self, new_pedestrians: Vec<super::Pedestrian>) {
+    fn spawn_pedestrians(&mut self, _field: &Field, new_pedestrians: Vec<super::Pedestrian>) {
         for p in new_pedestrians {
             self.pedestrians.push(Pedestrian {
                 position: p.pos.to_ocl(),

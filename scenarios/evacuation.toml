@@ -1,0 +1,591 @@
+[field]
+size = [54, 36]
+
+[[waypoints]]
+line = [[7, 6], [7, 8]]
+
+[[waypoints]]
+line = [[48, 6], [50, 6]]
+
+[[waypoints]]
+line = [[11.25, 3], [11.25, 6]]
+
+[[waypoints]]
+line = [[13.75, 3], [13.75, 6]]
+
+[[waypoints]]
+line = [[16.25, 3], [16.25, 6]]
+
+[[waypoints]]
+line = [[18.75, 3], [18.75, 6]]
+
+[[waypoints]]
+line = [[21.25, 3], [21.25, 6]]
+
+[[waypoints]]
+line = [[23.75, 3], [23.75, 6]]
+
+[[waypoints]]
+line = [[26.25, 3], [26.25, 6]]
+
+[[waypoints]]
+line = [[28.75, 3], [28.75, 6]]
+
+[[waypoints]]
+line = [[31.25, 3], [31.25, 6]]
+
+[[waypoints]]
+line = [[33.75, 3], [33.75, 6]]
+
+[[waypoints]]
+line = [[36.25, 3], [36.25, 6]]
+
+[[waypoints]]
+line = [[38.75, 3], [38.75, 6]]
+
+[[waypoints]]
+line = [[41.25, 3], [41.25, 6]]
+
+[[waypoints]]
+line = [[43.75, 3], [43.75, 6]]
+
+[[waypoints]]
+line = [[46.25, 3], [46.25, 6]]
+
+[[waypoints]]
+line = [[11.25, 13], [11.25, 10]]
+
+[[waypoints]]
+line = [[13.75, 13], [13.75, 10]]
+
+[[waypoints]]
+line = [[16.25, 13], [16.25, 10]]
+
+[[waypoints]]
+line = [[29.25, 30], [29.25, 33]]
+
+[[waypoints]]
+line = [[31.75, 30], [31.75, 33]]
+
+[[waypoints]]
+line = [[34.25, 30], [34.25, 33]]
+
+[[waypoints]]
+line = [[36.75, 30], [36.75, 33]]
+
+[[waypoints]]
+line = [[39.25, 30], [39.25, 33]]
+
+[[waypoints]]
+line = [[41.75, 30], [41.75, 33]]
+
+[[waypoints]]
+line = [[44.25, 30], [44.25, 33]]
+
+[[waypoints]]
+line = [[48, 11.5], [51, 11.5]]
+
+[[waypoints]]
+line = [[48, 14.5], [51, 14.5]]
+
+[[waypoints]]
+line = [[48, 17.5], [51, 17.5]]
+
+[[waypoints]]
+line = [[48, 20.5], [51, 20.5]]
+
+[[waypoints]]
+line = [[48, 23.5], [51, 23.5]]
+
+[[waypoints]]
+line = [[48, 26.5], [51, 26.5]]
+
+[[obstacles]]
+line = [[2, 2], [52, 2]]
+width = 0.2
+
+[[obstacles]]
+line = [[52, 2], [52, 34]]
+width = 0.2
+
+[[obstacles]]
+line = [[2, 2], [2, 6]]
+width = 0.2
+
+[[obstacles]]
+line = [[2, 6], [28, 34]]
+width = 0.2
+
+[[obstacles]]
+line = [[28, 34], [52, 34]]
+width = 0.2
+
+[[obstacles]]
+line = [[10, 2], [10, 7]]
+width = 0.2
+
+[[obstacles]]
+line = [[10, 7], [11.5, 7]]
+width = 0.2
+
+[[obstacles]]
+line = [[12.5, 2], [12.5, 7]]
+width = 0.2
+
+[[obstacles]]
+line = [[13.5, 7], [15.0, 7]]
+width = 0.2
+
+[[obstacles]]
+line = [[15.0, 2], [15.0, 7]]
+width = 0.2
+
+[[obstacles]]
+line = [[15.0, 7], [16.5, 7]]
+width = 0.2
+
+[[obstacles]]
+line = [[17.5, 2], [17.5, 7]]
+width = 0.2
+
+[[obstacles]]
+line = [[18.5, 7], [20.0, 7]]
+width = 0.2
+
+[[obstacles]]
+line = [[20.0, 2], [20.0, 7]]
+width = 0.2
+
+[[obstacles]]
+line = [[20.0, 7], [21.5, 7]]
+width = 0.2
+
+[[obstacles]]
+line = [[22.5, 2], [22.5, 7]]
+width = 0.2
+
+[[obstacles]]
+line = [[23.5, 7], [25.0, 7]]
+width = 0.2
+
+[[obstacles]]
+line = [[25.0, 2], [25.0, 7]]
+width = 0.2
+
+[[obstacles]]
+line = [[25.0, 7], [26.5, 7]]
+width = 0.2
+
+[[obstacles]]
+line = [[27.5, 2], [27.5, 7]]
+width = 0.2
+
+[[obstacles]]
+line = [[28.5, 7], [30.0, 7]]
+width = 0.2
+
+[[obstacles]]
+line = [[30.0, 2], [30.0, 7]]
+width = 0.2
+
+[[obstacles]]
+line = [[30.0, 7], [31.5, 7]]
+width = 0.2
+
+[[obstacles]]
+line = [[32.5, 2], [32.5, 7]]
+width = 0.2
+
+[[obstacles]]
+line = [[33.5, 7], [35.0, 7]]
+width = 0.2
+
+[[obstacles]]
+line = [[35.0, 2], [35.0, 7]]
+width = 0.2
+
+[[obstacles]]
+line = [[35.0, 7], [36.5, 7]]
+width = 0.2
+
+[[obstacles]]
+line = [[37.5, 2], [37.5, 7]]
+width = 0.2
+
+[[obstacles]]
+line = [[38.5, 7], [40.0, 7]]
+width = 0.2
+
+[[obstacles]]
+line = [[40.0, 2], [40.0, 7]]
+width = 0.2
+
+[[obstacles]]
+line = [[40.0, 7], [41.5, 7]]
+width = 0.2
+
+[[obstacles]]
+line = [[42.5, 2], [42.5, 7]]
+width = 0.2
+
+[[obstacles]]
+line = [[43.5, 7], [45.0, 7]]
+width = 0.2
+
+[[obstacles]]
+line = [[45.0, 2], [45.0, 7]]
+width = 0.2
+
+[[obstacles]]
+line = [[45.0, 7], [46.5, 7]]
+width = 0.2
+
+[[obstacles]]
+line = [[47.5, 2], [47.5, 7]]
+width = 0.2
+
+[[obstacles]]
+line = [[10, 14], [10, 9]]
+width = 0.2
+
+[[obstacles]]
+line = [[10, 9], [11.5, 9]]
+width = 0.2
+
+[[obstacles]]
+line = [[12.5, 14], [12.5, 9]]
+width = 0.2
+
+[[obstacles]]
+line = [[13.5, 9], [15.0, 9]]
+width = 0.2
+
+[[obstacles]]
+line = [[15.0, 14], [15.0, 9]]
+width = 0.2
+
+[[obstacles]]
+line = [[15.0, 9], [16.5, 9]]
+width = 0.2
+
+[[obstacles]]
+line = [[17.5, 14], [17.5, 9]]
+width = 0.2
+
+[[obstacles]]
+line = [[28, 29], [28, 34]]
+width = 0.2
+
+[[obstacles]]
+line = [[28, 29], [29.5, 29]]
+width = 0.2
+
+[[obstacles]]
+line = [[30.5, 29], [30.5, 34]]
+width = 0.2
+
+[[obstacles]]
+line = [[31.5, 29], [33.0, 29]]
+width = 0.2
+
+[[obstacles]]
+line = [[33.0, 29], [33.0, 34]]
+width = 0.2
+
+[[obstacles]]
+line = [[33.0, 29], [34.5, 29]]
+width = 0.2
+
+[[obstacles]]
+line = [[35.5, 29], [35.5, 34]]
+width = 0.2
+
+[[obstacles]]
+line = [[36.5, 29], [38.0, 29]]
+width = 0.2
+
+[[obstacles]]
+line = [[38.0, 29], [38.0, 34]]
+width = 0.2
+
+[[obstacles]]
+line = [[38.0, 29], [39.5, 29]]
+width = 0.2
+
+[[obstacles]]
+line = [[40.5, 29], [40.5, 34]]
+width = 0.2
+
+[[obstacles]]
+line = [[41.5, 29], [43.0, 29]]
+width = 0.2
+
+[[obstacles]]
+line = [[43.0, 29], [43.0, 34]]
+width = 0.2
+
+[[obstacles]]
+line = [[43.0, 29], [44.5, 29]]
+width = 0.2
+
+[[obstacles]]
+line = [[45.5, 29], [45.5, 34]]
+width = 0.2
+
+[[obstacles]]
+line = [[47, 10], [52, 10]]
+width = 0.2
+
+[[obstacles]]
+line = [[47, 10], [47, 12]]
+width = 0.2
+
+[[obstacles]]
+line = [[47, 13], [52, 13]]
+width = 0.2
+
+[[obstacles]]
+line = [[47, 14], [47, 16]]
+width = 0.2
+
+[[obstacles]]
+line = [[47, 16], [52, 16]]
+width = 0.2
+
+[[obstacles]]
+line = [[47, 16], [47, 18]]
+width = 0.2
+
+[[obstacles]]
+line = [[47, 19], [52, 19]]
+width = 0.2
+
+[[obstacles]]
+line = [[47, 20], [47, 22]]
+width = 0.2
+
+[[obstacles]]
+line = [[47, 22], [52, 22]]
+width = 0.2
+
+[[obstacles]]
+line = [[47, 22], [47, 24]]
+width = 0.2
+
+[[obstacles]]
+line = [[47, 25], [52, 25]]
+width = 0.2
+
+[[obstacles]]
+line = [[47, 26], [47, 28]]
+width = 0.2
+
+[[obstacles]]
+line = [[47, 28], [52, 28]]
+width = 0.2
+
+[[obstacles]]
+line = [[22.5, 9], [17.5, 9]]
+width = 0.2
+
+[[obstacles]]
+line = [[22.5, 9], [22.5, 10.5]]
+width = 0.2
+
+[[obstacles]]
+line = [[22.5, 11.5], [17.5, 11.5]]
+width = 0.2
+
+[[obstacles]]
+line = [[22.5, 12.5], [22.5, 14.0]]
+width = 0.2
+
+[[obstacles]]
+line = [[22.5, 14.0], [17.5, 14.0]]
+width = 0.2
+
+[[obstacles]]
+line = [[22.5, 14.0], [22.5, 15.5]]
+width = 0.2
+
+[[obstacles]]
+line = [[22.5, 16.5], [17.5, 16.5]]
+width = 0.2
+
+[[obstacles]]
+line = [[22.5, 17.5], [22.5, 19.0]]
+width = 0.2
+
+[[obstacles]]
+line = [[22.5, 19.0], [17.5, 19.0]]
+width = 0.2
+
+[[obstacles]]
+line = [[22.5, 19.0], [22.5, 20.5]]
+width = 0.2
+
+[[obstacles]]
+line = [[22.5, 21.5], [17.5, 21.5]]
+width = 0.2
+
+[[obstacles]]
+line = [[22.5, 24], [20.5, 26]]
+width = 0.2
+
+[[obstacles]]
+line = [[22.5, 24], [23.5, 25]]
+width = 0.2
+
+[[obstacles]]
+line = [[24.5, 26], [22.5, 28]]
+width = 0.2
+
+[[obstacles]]
+line = [[25.5, 27], [26.5, 28]]
+width = 0.2
+
+[[obstacles]]
+line = [[26.5, 28], [24.5, 30]]
+width = 0.2
+
+[[obstacles]]
+line = [[17.5, 14], [17.5, 22.5]]
+width = 0.2
+
+[[obstacles]]
+line = [[9.5, 14], [17.5, 14]]
+width = 0.2
+
+[[obstacles]]
+line = [[36, 26], [36, 10]]
+width = 0.2
+
+[[obstacles]]
+line = [[36, 10], [45, 10]]
+width = 0.2
+
+[[obstacles]]
+line = [[45, 22], [45, 10]]
+width = 0.2
+
+[[obstacles]]
+line = [[45, 22], [40, 22]]
+width = 0.2
+
+[[obstacles]]
+line = [[40, 26], [40, 22]]
+width = 0.2
+
+[[obstacles]]
+line = [[40, 26], [36, 26]]
+width = 0.2
+
+[[obstacles]]
+line = [[25, 10], [25, 23]]
+width = 0.2
+
+[[obstacles]]
+line = [[28, 26], [25, 23]]
+width = 0.2
+
+[[obstacles]]
+line = [[28, 26], [32, 26]]
+width = 0.2
+
+[[obstacles]]
+line = [[32, 10], [32, 26]]
+width = 0.2
+
+[[obstacles]]
+line = [[32, 10], [25, 10]]
+width = 0.2
+
+[[pedestrians]]
+origin = 2
+destination = 0
+spawn = {kind = "periodic", frequency = 0.5}
+
+[[pedestrians]]
+origin = 3
+destination = 0
+spawn = {kind = "periodic", frequency = 0.5}
+
+[[pedestrians]]
+origin = 4
+destination = 0
+spawn = {kind = "periodic", frequency = 0.5}
+
+[[pedestrians]]
+origin = 5
+destination = 0
+spawn = {kind = "periodic", frequency = 0.5}
+
+[[pedestrians]]
+origin = 6
+destination = 0
+spawn = {kind = "periodic", frequency = 0.5}
+
+[[pedestrians]]
+origin = 7
+destination = 0
+spawn = {kind = "periodic", frequency = 0.5}
+
+[[pedestrians]]
+origin = 8
+destination = 0
+spawn = {kind = "periodic", frequency = 0.5}
+
+[[pedestrians]]
+origin = 9
+destination = 0
+spawn = {kind = "periodic", frequency = 0.5}
+
+[[pedestrians]]
+origin = 10
+destination = 0
+spawn = {kind = "periodic", frequency = 0.5}
+
+[[pedestrians]]
+origin = 11
+destination = 0
+spawn = {kind = "periodic", frequency = 0.5}
+
+[[pedestrians]]
+origin = 12
+destination = 0
+spawn = {kind = "periodic", frequency = 0.5}
+
+[[pedestrians]]
+origin = 13
+destination = 0
+spawn = {kind = "periodic", frequency = 0.5}
+
+[[pedestrians]]
+origin = 14
+destination = 0
+spawn = {kind = "periodic", frequency = 0.5}
+
+[[pedestrians]]
+origin = 15
+destination = 0
+spawn = {kind = "periodic", frequency = 0.5}
+
+[[pedestrians]]
+origin = 16
+destination = 0
+spawn = {kind = "periodic", frequency = 0.5}
+
+[[pedestrians]]
+origin = 17
+destination = 0
+spawn = {kind = "periodic", frequency = 0.5}
+
+[[pedestrians]]
+origin = 18
+destination = 0
+spawn = {kind = "periodic", frequency = 0.5}
+
+[[pedestrians]]
+origin = 19
+destination = 0
+spawn = {kind = "periodic", frequency = 0.5}

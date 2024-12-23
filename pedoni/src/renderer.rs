@@ -42,6 +42,13 @@ impl PittoreApp for Renderer {
             if c.key_just_pressed(KeyCode::Space) {
                 state.paused ^= true;
             }
+
+            if c.key_just_pressed(KeyCode::KeyS) {
+                let time = chrono::Local::now()
+                    .format("%Y-%m-%d_%H%M%S_screenshot.png")
+                    .to_string();
+                c.save_screen_shot(format!("logs/{time}"));
+            }
         }
 
         // Apply camera transform.

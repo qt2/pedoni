@@ -1,0 +1,26 @@
+[field]
+size = [60, 30]
+
+[[waypoints]]
+line = [[5, 0.5], [5, 3.5]]
+
+[[waypoints]]
+line = [[55, 0.5], [55, 3.5]]
+
+[[obstacles]]
+line = [[0, 0], [60, 0]]
+width = 0.2
+
+[[obstacles]]
+line = [[0, 4], [60, 4]]
+width = 0.2
+
+[[pedestrians]]
+origin = 0
+destination = 1
+spawn = { kind = "periodic", frequency = 0.72 }
+
+[[pedestrians]]
+origin = 1
+destination = 0
+spawn = { kind = "periodic", frequency = 0.72 }

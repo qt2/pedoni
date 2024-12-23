@@ -68,7 +68,7 @@ impl Simulator {
                 })
             }
         }
-        self.model.spawn_pedestrians(new_pedestrians);
+        self.model.spawn_pedestrians(&self.field, new_pedestrians);
 
         self.step_metrics.lock().unwrap().time_spawn = instant.elapsed().as_secs_f64();
     }
