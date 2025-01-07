@@ -1,4 +1,4 @@
-use std::{f64::consts::PI, sync::Mutex};
+use std::sync::Mutex;
 
 use glam::{IVec2, Vec2};
 use rayon::prelude::*;
