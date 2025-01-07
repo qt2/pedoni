@@ -85,13 +85,10 @@ impl Simulator {
         self.model.spawn_pedestrians(&self.field, new_pedestrians);
         let time_spawn = instant.elapsed().as_secs_f64();
 
-        // Calculate next state
+        // Update states
         let instant = Instant::now();
-        self.model.calc_next_state(self);
+        self.model.update_states(&self.scenario, &self.field);
         let time_calc_state = instant.elapsed().as_secs_f64();
-
-        // Apply next state
-        self.model.apply_next_state();
 
         // Record performance metrics
         StepMetrics {
@@ -108,7 +105,7 @@ impl Simulator {
 }
 
 /// Simulator options.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SimulatorOptions {
     /// Backend type: CPU or GPU    
     pub backend: Backend,

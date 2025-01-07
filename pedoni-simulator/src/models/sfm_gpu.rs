@@ -13,6 +13,7 @@ use soa_derive::StructOfArray;
 use crate::{
     field::Field,
     neighbor_grid::NeighborGrid,
+    scenario::Scenario,
     util::{ToGlam, ToOcl},
     Simulator, SimulatorOptions,
 };
@@ -21,14 +22,14 @@ use super::PedestrianModel;
 
 pub struct SocialForceModelGpu {
     pedestrians: PedestrianVec,
-    neighbor_grid: Option<NeighborGrid>,
+    neighbor_grid: NeighborGrid,
     neighbor_grid_indices: Vec<u32>,
-    next_state: Mutex<Vec<Float2>>,
 
     pq: ProQue,
     local_work_size: usize,
-    field_potential_grids_buffer: Image<f32>,
-    field_potential_sampler: Sampler,
+
+    potential_map_buffer: Image<f32>,
+    distance_map_buffer: Image<f32>,
 }
 
 #[derive(Debug, Clone, StructOfArray)]
@@ -41,14 +42,8 @@ pub struct Pedestrian {
 }
 
 impl PedestrianModel for SocialForceModelGpu {
-    fn new(
-        options: &SimulatorOptions,
-        scenario: &crate::scenario::Scenario,
-        field: &crate::field::Field,
-    ) -> Self {
-        let neighbor_grid = options
-            .use_neighbor_grid
-            .then(|| NeighborGrid::new(scenario.field.size, options.neighbor_grid_unit));
+    fn new(options: &SimulatorOptions, scenario: &Scenario, field: &Field) -> Self {
+        let neighbor_grid = NeighborGrid::new(scenario.field.size, options.neighbor_grid_unit);
 
         let source = include_str!("sfm_gpu.cl");
         let pq = ProQue::builder()
@@ -58,85 +53,92 @@ impl PedestrianModel for SocialForceModelGpu {
             .build()
             .unwrap();
 
-        let field_potential_grids_data: Vec<f32> = field
+        let potential_map_data: Vec<f32> = field
             .potentials
             .iter()
             .flat_map(|grid| grid.iter().cloned())
             .collect();
+        let distance_map_data: Vec<f32> = field.distance_from_obstacle.iter().cloned().collect();
 
-        let field_potential_grids_buffer = Image::builder()
+        let potential_map_buffer = Image::builder()
             .channel_data_type(ImageChannelDataType::Float)
             .channel_order(ImageChannelOrder::R)
             .image_type(MemObjectType::Image2dArray)
             .dims((field.shape.1, field.shape.0, field.potentials.len()))
             .array_size(field.potentials.len())
-            .copy_host_slice(&field_potential_grids_data)
+            .copy_host_slice(&potential_map_data)
             .queue(pq.queue().clone())
             .build()
             .unwrap();
-        let field_potential_sampler = Sampler::new(
-            &pq.context(),
-            false,
-            AddressingMode::ClampToEdge,
-            FilterMode::Linear,
-        )
-        .unwrap();
+
+        let distance_map_buffer = Image::builder()
+            .channel_data_type(ImageChannelDataType::Float)
+            .channel_order(ImageChannelOrder::R)
+            .image_type(MemObjectType::Image2d)
+            .dims((field.shape.1, field.shape.0, 1))
+            .copy_host_slice(&distance_map_data)
+            .queue(pq.queue().clone())
+            .build()
+            .unwrap();
 
         SocialForceModelGpu {
             pedestrians: Default::default(),
             neighbor_grid,
             neighbor_grid_indices: Vec::default(),
-            next_state: Default::default(),
             pq,
             local_work_size: options.gpu_work_size,
-            field_potential_grids_buffer,
-            field_potential_sampler,
+            potential_map_buffer,
+            distance_map_buffer,
         }
     }
 
-    fn spawn_pedestrians(&mut self, _field: &Field, new_pedestrians: Vec<super::Pedestrian>) {
+    fn spawn_pedestrians(&mut self, field: &Field, new_pedestrians: Vec<super::Pedestrian>) {
         for p in new_pedestrians {
             self.pedestrians.push(Pedestrian {
                 position: p.pos.to_ocl(),
                 destination: p.destination as u32,
                 velocity: Float2::zero(),
-                desired_speed: 1.34,
+                desired_speed: fastrand_contrib::f32_normal_approx(1.34, 0.26),
             });
         }
 
-        if let Some(neighbor_grid) = &mut self.neighbor_grid {
-            neighbor_grid.update(self.pedestrians.position.iter().map(|p| p.to_glam()));
+        self.neighbor_grid
+            .update(self.pedestrians.position.iter().map(|p| p.to_glam()));
 
-            let mut sorted_pedestrians = PedestrianVec::default();
-            self.neighbor_grid_indices = Vec::with_capacity(neighbor_grid.data.len() + 1);
-            self.neighbor_grid_indices.push(0);
-            let mut index = 0;
+        let mut sorted_pedestrians = PedestrianVec::default();
+        self.neighbor_grid_indices = Vec::with_capacity(self.neighbor_grid.data.len() + 1);
+        self.neighbor_grid_indices.push(0);
+        let mut index = 0;
 
-            for cell in neighbor_grid.data.iter() {
-                for j in 0..cell.len() {
-                    sorted_pedestrians
-                        .push(self.pedestrians.get(cell[j] as usize).unwrap().to_owned());
+        for cell in self.neighbor_grid.data.iter() {
+            for j in 0..cell.len() {
+                let p = self.pedestrians.get(cell[j] as usize).unwrap().to_owned();
+                if field.get_field_potential(p.destination as usize, p.position.to_glam()) > 0.25 {
+                    sorted_pedestrians.push(p);
+                    index += 1;
                 }
-                index += cell.len();
-                self.neighbor_grid_indices.push(index as u32);
             }
-
-            self.pedestrians = sorted_pedestrians;
+            self.neighbor_grid_indices.push(index as u32);
         }
+
+        self.pedestrians = sorted_pedestrians;
     }
 
-    fn calc_next_state(&self, sim: &Simulator) {
-        self.calc_next_state_kernel(sim).unwrap();
-    }
+    fn update_states(&mut self, _scenario: &Scenario, field: &Field) {
+        let accelerations = self.calc_next_state_kernel(field).unwrap();
 
-    fn apply_next_state(&mut self) {
-        // let accelerations = self.next_state.lock().unwrap();
-        let pedestrians = &mut self.pedestrians;
+        for i in 0..self.pedestrians.len() {
+            let pos = &mut self.pedestrians.position[i];
+            let vel = &mut self.pedestrians.velocity[i];
+            let desired_speed = self.pedestrians.desired_speed[i];
 
-        let next_state = self.next_state.lock().unwrap();
+            let vel_prev = vel.to_glam();
+            let mut v = vel_prev + accelerations[i].to_glam() * 0.1;
+            v = v.clamp_length_max(desired_speed * 1.3);
+            let p = pos.to_glam() + (v + vel_prev) * 0.05;
 
-        for i in 0..pedestrians.len() {
-            pedestrians.position[i] = next_state[i];
+            *vel = v.to_ocl();
+            *pos = p.to_ocl();
         }
     }
 
@@ -156,17 +158,16 @@ impl PedestrianModel for SocialForceModelGpu {
 }
 
 impl SocialForceModelGpu {
-    fn calc_next_state_kernel(&self, sim: &Simulator) -> ocl::Result<()> {
+    fn calc_next_state_kernel(&self, field: &Field) -> ocl::Result<Vec<Float2>> {
         let ped_count = self.pedestrians.len();
         if ped_count == 0 {
-            return Ok(());
+            return Ok(Vec::new());
         }
 
-        let field_potential_unit = sim.field.unit;
-
-        let neighbor_grid = self.neighbor_grid.as_ref().unwrap();
-        let neighbor_grid_shape =
-            Int2::new(neighbor_grid.shape.0 as i32, neighbor_grid.shape.1 as i32);
+        let neighbor_grid_shape = Int2::new(
+            self.neighbor_grid.shape.0 as i32,
+            self.neighbor_grid.shape.1 as i32,
+        );
 
         let pq = &self.pq;
         let global_work_size =
@@ -177,6 +178,18 @@ impl SocialForceModelGpu {
             .flags(MemFlags::READ_ONLY)
             .len(ped_count)
             .copy_host_slice(&self.pedestrians.position)
+            .build()?;
+        let velocity_buffer = pq
+            .buffer_builder()
+            .flags(MemFlags::READ_ONLY)
+            .len(ped_count)
+            .copy_host_slice(&self.pedestrians.velocity)
+            .build()?;
+        let disired_speed_buffer = pq
+            .buffer_builder()
+            .flags(MemFlags::READ_ONLY)
+            .len(ped_count)
+            .copy_host_slice(&self.pedestrians.desired_speed)
             .build()?;
         let destination_buffer = pq
             .buffer_builder()
@@ -190,7 +203,7 @@ impl SocialForceModelGpu {
             .len(self.neighbor_grid_indices.len())
             .copy_host_slice(&self.neighbor_grid_indices)
             .build()?;
-        let next_position_buffer = pq
+        let acceleration_buffer = pq
             .buffer_builder()
             .flags(MemFlags::WRITE_ONLY)
             .len(ped_count)
@@ -200,15 +213,16 @@ impl SocialForceModelGpu {
             .kernel_builder("calc_next_state")
             .arg(&(ped_count as u32))
             .arg(&position_buffer)
+            .arg(&velocity_buffer)
+            .arg(&disired_speed_buffer)
             .arg(&destination_buffer)
-            .arg(&self.field_potential_grids_buffer)
-            .arg_sampler(&self.field_potential_sampler)
-            .arg(&field_potential_unit)
-            // .arg(&neighbor_grid_data_buffer)
+            .arg(&self.potential_map_buffer)
+            .arg(&self.distance_map_buffer)
+            .arg(&field.unit)
             .arg(&neighbor_grid_indices_buffer)
             .arg(&neighbor_grid_shape)
-            .arg(&neighbor_grid.unit)
-            .arg(&next_position_buffer)
+            .arg(&self.neighbor_grid.unit)
+            .arg(&acceleration_buffer)
             .global_work_size(global_work_size)
             .local_work_size(self.local_work_size)
             .build()?;
@@ -220,18 +234,11 @@ impl SocialForceModelGpu {
         event.wait_for()?;
         let start = event.profiling_info(ProfilingInfo::Start)?.time()?;
         let end = event.profiling_info(ProfilingInfo::End)?.time()?;
-        let time_kernel = Duration::from_nanos(end - start);
+        let _time_kernel = Duration::from_nanos(end - start);
 
-        // {
-        //     let mut step_metrics = sim.step_metrics.lock().unwrap();
-        //     step_metrics.time_calc_state_kernel = Some(time_kernel.as_secs_f64());
-        // }
+        let mut accelerations = vec![Float2::zero(); ped_count];
+        acceleration_buffer.read(&mut accelerations).enq()?;
 
-        let mut next_positions = vec![Float2::zero(); ped_count];
-        next_position_buffer.read(&mut next_positions).enq()?;
-
-        *self.next_state.lock().unwrap() = next_positions;
-
-        Ok(())
+        Ok(accelerations)
     }
 }

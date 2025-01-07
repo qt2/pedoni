@@ -17,9 +17,7 @@ pub trait PedestrianModel: Send + Sync {
 
     fn spawn_pedestrians(&mut self, field: &Field, new_pedestrians: Vec<Pedestrian>);
 
-    fn calc_next_state(&self, sim: &Simulator);
-
-    fn apply_next_state(&mut self);
+    fn update_states(&mut self, scenario: &Scenario, field: &Field);
 
     fn list_pedestrians(&self) -> Vec<Pedestrian>;
 
