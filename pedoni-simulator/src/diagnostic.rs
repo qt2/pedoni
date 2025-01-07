@@ -47,5 +47,4 @@ pub struct StepMetrics {
     pub time_spawn: f64,
     pub time_calc_state: f64,
     pub time_calc_state_kernel: Option<f64>,
-    pub time_apply_state: f64,
 }

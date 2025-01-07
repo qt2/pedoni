@@ -222,10 +222,10 @@ impl SocialForceModelGpu {
         let end = event.profiling_info(ProfilingInfo::End)?.time()?;
         let time_kernel = Duration::from_nanos(end - start);
 
-        {
-            let mut step_metrics = sim.step_metrics.lock().unwrap();
-            step_metrics.time_calc_state_kernel = Some(time_kernel.as_secs_f64());
-        }
+        // {
+        //     let mut step_metrics = sim.step_metrics.lock().unwrap();
+        //     step_metrics.time_calc_state_kernel = Some(time_kernel.as_secs_f64());
+        // }
 
         let mut next_positions = vec![Float2::zero(); ped_count];
         next_position_buffer.read(&mut next_positions).enq()?;

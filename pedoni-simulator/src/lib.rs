@@ -1,16 +1,16 @@
 pub mod diagnostic;
 pub mod field;
-mod models;
+pub mod models;
 mod neighbor_grid;
 pub mod scenario;
 pub mod util;
 
-use std::{sync::Mutex, time::Instant};
+use std::time::Instant;
 
-use diagnostic::{DiagnositcLog, StepMetrics};
+use diagnostic::StepMetrics;
 use field::Field;
 use log::info;
-use models::{EmptyModel, Pedestrian, PedestrianModel, SocialForceModel, SocialForceModelGpu};
+use models::{Pedestrian, PedestrianModel, SocialForceModel, SocialForceModelGpu};
 use scenario::{PedestrianSpawnConfig, Scenario};
 
 /// Simulator instance.
@@ -19,48 +19,28 @@ pub struct Simulator {
     pub scenario: Scenario,
     pub field: Field,
     pub model: Box<dyn PedestrianModel>,
-    pub spawn_rng: fastrand::Rng,
-    pub diagnostic_log: DiagnositcLog,
-    pub step_metrics: Mutex<StepMetrics>,
+    pub step: i32,
 }
 
 impl Simulator {
-    pub fn new() -> Self {
-        Simulator {
-            options: SimulatorOptions::default(),
-            scenario: Scenario::default(),
-            field: Field::default(),
-            model: Box::new(EmptyModel),
-            spawn_rng: fastrand::Rng::new(),
-            diagnostic_log: DiagnositcLog::default(),
-            step_metrics: Mutex::new(StepMetrics::default()),
-        }
-    }
+    // Prepare a new simulator with given options and scenario.
+    pub fn new(options: SimulatorOptions, scenario: Scenario) -> Self {
+        info!("Simulator options: {options:#?}");
 
-    pub fn initialize(&mut self, scenario: Scenario, options: SimulatorOptions) {
         let field = Field::from_scenario(&scenario, options.field_grid_unit);
-        let model: Box<dyn PedestrianModel> = match options.backend {
+
+        let mut model: Box<dyn PedestrianModel> = match options.backend {
             Backend::Cpu => Box::new(SocialForceModel::new(&options, &scenario, &field)),
             Backend::Gpu => Box::new(SocialForceModelGpu::new(&options, &scenario, &field)),
         };
 
-        info!("Simulator options: {options:#?}");
-
-        self.options = options;
-        self.scenario = scenario;
-        self.field = field;
-        self.model = model;
-        self.spawn_rng = fastrand::Rng::with_seed(0);
-
-        info!("Simulator initialization finished");
-
         let mut new_pedestrians = Vec::new();
-        for pedestrian in self.scenario.pedestrians.iter() {
+        for pedestrian in scenario.pedestrians.iter() {
             if let PedestrianSpawnConfig::Once { count } = pedestrian.spawn {
-                let [p_1, p_2] = self.scenario.waypoints[pedestrian.origin].line;
+                let [p_1, p_2] = scenario.waypoints[pedestrian.origin].line;
 
                 for _ in 0..count {
-                    let pos = p_1.lerp(p_2, self.spawn_rng.f32());
+                    let pos = p_1.lerp(p_2, fastrand::f32());
                     new_pedestrians.push(Pedestrian {
                         pos,
                         destination: pedestrian.destination,
@@ -69,20 +49,31 @@ impl Simulator {
                 }
             }
         }
-        self.model.spawn_pedestrians(&self.field, new_pedestrians);
+        model.spawn_pedestrians(&field, new_pedestrians);
+
+        Simulator {
+            options,
+            scenario,
+            field,
+            model,
+            step: 0,
+        }
     }
 
-    pub fn spawn_pedestrians(&mut self) {
-        let instant = Instant::now();
+    // Step the time and update pedestrians' positions.
+    pub fn tick(&mut self) -> StepMetrics {
+        self.step += 1;
 
+        // Spawn / despawn pedestrians
+        let instant = Instant::now();
         let mut new_pedestrians = Vec::new();
         for pedestrian in self.scenario.pedestrians.iter() {
             if let PedestrianSpawnConfig::Periodic { frequency } = pedestrian.spawn {
                 let [p_1, p_2] = self.scenario.waypoints[pedestrian.origin].line;
-                let count = util::poisson(frequency / 10.0, &mut self.spawn_rng);
+                let count = util::poisson(frequency / 10.0);
 
                 for _ in 0..count {
-                    let pos = p_1.lerp(p_2, self.spawn_rng.f32());
+                    let pos = p_1.lerp(p_2, fastrand::f32());
                     new_pedestrians.push(Pedestrian {
                         pos,
                         destination: pedestrian.destination,
@@ -92,43 +83,27 @@ impl Simulator {
             }
         }
         self.model.spawn_pedestrians(&self.field, new_pedestrians);
+        let time_spawn = instant.elapsed().as_secs_f64();
 
-        self.step_metrics.lock().unwrap().time_spawn = instant.elapsed().as_secs_f64();
-    }
-
-    pub fn calc_next_state(&self) {
+        // Calculate next state
         let instant = Instant::now();
-
         self.model.calc_next_state(self);
+        let time_calc_state = instant.elapsed().as_secs_f64();
 
-        self.step_metrics.lock().unwrap().time_calc_state = instant.elapsed().as_secs_f64();
-    }
-
-    pub fn apply_next_state(&mut self) {
-        let instant = Instant::now();
-
+        // Apply next state
         self.model.apply_next_state();
 
-        self.step_metrics.lock().unwrap().time_apply_state = instant.elapsed().as_secs_f64();
-    }
-
-    pub fn collect_diagnostic_metrics(&mut self) {
-        let mut metrics = {
-            let mut metrics = self.step_metrics.lock().unwrap();
-            let mut empty = StepMetrics::default();
-            std::mem::swap(&mut *metrics, &mut empty);
-            empty
-        };
-        metrics.active_ped_count = self.get_pedestrian_count();
-        self.diagnostic_log.push(metrics);
+        // Record performance metrics
+        StepMetrics {
+            active_ped_count: self.model.get_pedestrian_count(),
+            time_spawn,
+            time_calc_state,
+            time_calc_state_kernel: None,
+        }
     }
 
     pub fn list_pedestrians(&self) -> Vec<Pedestrian> {
         self.model.list_pedestrians()
-    }
-
-    pub fn get_pedestrian_count(&self) -> i32 {
-        self.model.get_pedestrian_count()
     }
 }
 

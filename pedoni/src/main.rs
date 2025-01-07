@@ -4,7 +4,7 @@ pub mod renderer;
 use std::{
     fs::{self, File},
     path::PathBuf,
-    sync::{atomic::AtomicBool, Mutex, RwLock},
+    sync::{atomic::AtomicBool, Mutex},
     thread,
     time::{Duration, Instant},
 };
@@ -13,12 +13,15 @@ use args::Args;
 use clap::Parser;
 use log::{info, warn};
 use once_cell::sync::Lazy;
-use pedoni_simulator::{scenario::Scenario, Simulator};
+use pedoni_simulator::{
+    diagnostic::DiagnositcLog, models::Pedestrian, scenario::Scenario, Simulator,
+};
 
 use crate::renderer::Renderer;
 
-static SIMULATOR: Lazy<RwLock<Simulator>> = Lazy::new(|| RwLock::new(Simulator::new()));
-static STATE: Mutex<State> = Mutex::new(State {
+static SIMULATOR_STATE: Lazy<Mutex<SimulatorState>> =
+    Lazy::new(|| Mutex::new(SimulatorState::default()));
+static CONTROL_STATE: Mutex<ControlState> = Mutex::new(ControlState {
     paused: true,
     playback_speed: 4.0,
 });
@@ -26,8 +29,15 @@ static SIG_INT: AtomicBool = AtomicBool::new(false);
 
 pub const DELTA_TIME: f32 = 0.1;
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct State {
+#[derive(Default)]
+pub struct SimulatorState {
+    pub pedestrians: Vec<Pedestrian>,
+    pub scenario: Scenario,
+    pub diagnostic_log: DiagnositcLog,
+}
+
+#[derive(Clone)]
+pub struct ControlState {
     pub paused: bool,
     pub playback_speed: f32,
 }
@@ -42,44 +52,30 @@ fn main() -> anyhow::Result<()> {
     }
 
     let args = Args::parse();
-    STATE.lock().unwrap().playback_speed = args.speed;
+    CONTROL_STATE.lock().unwrap().playback_speed = args.speed;
 
     let scenario: Scenario = toml::from_str(&fs::read_to_string(&args.scenario)?)?;
     let field_size = scenario.field.size;
+    SIMULATOR_STATE.lock().unwrap().scenario = scenario.clone();
 
-    {
-        let mut simulator = SIMULATOR.write().unwrap();
-        simulator.initialize(scenario, args.to_simulator_options());
-    }
+    let mut simulator = Simulator::new(args.to_simulator_options(), scenario);
 
     thread::spawn(move || loop {
         let start = Instant::now();
-        let state = STATE.lock().unwrap().clone();
+        let state = CONTROL_STATE.lock().unwrap().clone();
 
         if !state.paused {
-            {
-                let mut simulator = SIMULATOR.write().unwrap();
-                simulator.spawn_pedestrians();
+            let step_metrics = simulator.tick();
+            if simulator.step % 100 == 0 {
+                info!(
+                    "Step: {:6}, Active pedestrians: {:6}",
+                    simulator.step, step_metrics.active_ped_count
+                );
             }
-            {
-                let simulator = SIMULATOR.read().unwrap();
-                simulator.calc_next_state();
-            }
-            {
-                let mut simulator = SIMULATOR.write().unwrap();
-                simulator.apply_next_state();
-                simulator.collect_diagnostic_metrics();
 
-                let diangostic_log = &simulator.diagnostic_log;
-                if diangostic_log.total_steps % 100 == 0 {
-                    if let Some(count) = diangostic_log.step_metrics.active_ped_count.last() {
-                        info!(
-                            "Step: {:6}, Active pedestrians: {:6}",
-                            diangostic_log.total_steps, count
-                        );
-                    }
-                }
-            }
+            let mut state = SIMULATOR_STATE.lock().unwrap();
+            state.pedestrians = simulator.list_pedestrians();
+            state.diagnostic_log.push(step_metrics);
         }
 
         let step_time = Instant::now() - start;
@@ -93,7 +89,7 @@ fn main() -> anyhow::Result<()> {
         info!("Run as headless mode");
         ctrlc::set_handler(|| SIG_INT.store(true, std::sync::atomic::Ordering::SeqCst))?;
 
-        STATE.lock().unwrap().paused = false;
+        CONTROL_STATE.lock().unwrap().paused = false;
 
         loop {
             if SIG_INT.load(std::sync::atomic::Ordering::SeqCst) {
@@ -106,9 +102,9 @@ fn main() -> anyhow::Result<()> {
                 .iter()
                 .collect();
                 let mut log_file = File::create(&log_path)?;
-                let simulator = SIMULATOR.read().unwrap();
+                let state = SIMULATOR_STATE.lock().unwrap();
 
-                serde_json::to_writer(&mut log_file, &simulator.diagnostic_log)?;
+                serde_json::to_writer(&mut log_file, &state.diagnostic_log)?;
                 info!("Exported log file: {}", log_path.display());
 
                 break;
