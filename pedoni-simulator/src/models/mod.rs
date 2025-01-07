@@ -5,7 +5,7 @@ use glam::Vec2;
 
 use crate::SimulatorOptions;
 
-use super::{field::Field, scenario::Scenario, Simulator};
+use super::{field::Field, scenario::Scenario};
 
 #[allow(unused)]
 pub use self::{sfm::SocialForceModel, sfm_gpu::SocialForceModelGpu};

@@ -1,12 +1,9 @@
-use std::{sync::Mutex, time::Duration};
+use std::time::Duration;
 
 use ocl::{
-    core::{
-        AddressingMode, FilterMode, ImageChannelDataType, ImageChannelOrder, MemObjectType,
-        ProfilingInfo,
-    },
+    core::{ImageChannelDataType, ImageChannelOrder, MemObjectType, ProfilingInfo},
     prm::{Float2, Int2},
-    Event, Image, MemFlags, ProQue, Sampler,
+    Event, Image, MemFlags, ProQue,
 };
 use soa_derive::StructOfArray;
 
@@ -15,7 +12,7 @@ use crate::{
     neighbor_grid::NeighborGrid,
     scenario::Scenario,
     util::{ToGlam, ToOcl},
-    Simulator, SimulatorOptions,
+    SimulatorOptions,
 };
 
 use super::PedestrianModel;
