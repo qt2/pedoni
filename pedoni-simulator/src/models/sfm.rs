@@ -66,7 +66,7 @@ impl PedestrianModel for SocialForceModel {
             for cell in neighbor_grid.data.iter() {
                 for j in 0..cell.len() {
                     let p = self.pedestrians.get(cell[j] as usize).unwrap().to_owned();
-                    if field.get_field_potential(p.destination as usize, p.position) > 0.25 {
+                    if field.get_potential(p.destination as usize, p.position) > 0.25 {
                         sorted_pedestrians.push(p);
                         index += 1;
                     }
@@ -79,7 +79,7 @@ impl PedestrianModel for SocialForceModel {
             let mut pedestrians = PedestrianVec::default();
 
             for p in self.pedestrians.iter() {
-                if field.get_field_potential(*p.destination as usize, *p.position) > 0.25 {
+                if field.get_potential(*p.destination as usize, *p.position) > 0.25 {
                     pedestrians.push(p.to_owned());
                 }
             }

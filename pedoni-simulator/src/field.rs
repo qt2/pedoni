@@ -17,7 +17,7 @@ pub struct FieldBuilder {
     unit: f32,
     shape: (usize, usize),
     obstacle_exist: Array2<bool>,
-    potentials: Vec<Array2<f32>>,
+    potential_maps: Vec<Array2<f32>>,
 }
 
 impl FieldBuilder {
@@ -35,7 +35,7 @@ impl FieldBuilder {
             unit,
             shape,
             obstacle_exist,
-            potentials: Vec::new(),
+            potential_maps: Vec::new(),
         }
     }
 
@@ -84,7 +84,7 @@ impl FieldBuilder {
         rasterizer.rasterize(&shape, 0.0).unwrap();
         let grid = rasterizer.finish();
 
-        self.potentials.push(grid);
+        self.potential_maps.push(grid);
     }
 
     fn build(self) -> Field {
@@ -92,24 +92,24 @@ impl FieldBuilder {
             unit,
             shape,
             obstacle_exist,
-            mut potentials,
+            mut potential_maps,
         } = self;
 
-        let mut distance_from_obstacle = obstacle_exist.map(|&obs| if obs { 0.0 } else { 1e24 });
-        apply_fmm(&mut distance_from_obstacle, &Array2::from_elem(shape, unit));
+        let mut distance_map = obstacle_exist.map(|&obs| if obs { 0.0 } else { 1e24 });
+        apply_fmm(&mut distance_map, &Array2::from_elem(shape, unit));
 
         // let slowness = distance_from_obstacle.map(|&d| (1e4 * (-10.0 * d).exp() + 1.0) * unit);
         let slowness = obstacle_exist.map(|&d| if d { 1e4 } else { 1.0 });
-        potentials.par_iter_mut().for_each(|potential| {
-            apply_fmm(potential, &slowness);
+        potential_maps.par_iter_mut().for_each(|potential_map| {
+            apply_fmm(potential_map, &slowness);
         });
 
         Field {
             unit,
             shape,
             obstacle_exist,
-            distance_from_obstacle,
-            potentials,
+            distance_map,
+            potential_maps,
         }
     }
 }
@@ -199,9 +199,9 @@ pub struct Field {
     /// Boolean grid which holds obstacle existence
     pub obstacle_exist: Array2<bool>,
     /// Distance from nearest obstacle
-    pub distance_from_obstacle: Array2<f32>,
+    pub distance_map: Array2<f32>,
     /// Potential against each waypoint
-    pub potentials: Vec<Array2<f32>>,
+    pub potential_maps: Vec<Array2<f32>>,
 }
 
 impl Default for Field {
@@ -210,8 +210,8 @@ impl Default for Field {
             unit: 0.5,
             shape: (0, 0),
             obstacle_exist: Default::default(),
-            distance_from_obstacle: Default::default(),
-            potentials: Vec::default(),
+            distance_map: Default::default(),
+            potential_maps: Vec::default(),
         }
     }
 }
@@ -232,74 +232,50 @@ impl Field {
     }
 
     /// Get field potential against the waypoint.
-    pub fn get_field_potential(&self, waypoint_id: usize, position: Vec2) -> f32 {
+    pub fn get_potential(&self, waypoint_id: usize, position: Vec2) -> f32 {
         let position = position / self.unit - Vec2::splat(0.5);
-
-        let potential = &self.potentials[waypoint_id];
+        let potential = &self.potential_maps[waypoint_id];
         util::bilinear(potential, position)
     }
 
     /// Get distance from the nearest obstacle.
     pub fn get_obstacle_distance(&self, position: Vec2) -> f32 {
         let position = position / self.unit - Vec2::splat(0.5);
-        util::bilinear(&self.distance_from_obstacle, position)
+        util::bilinear(&self.distance_map, position)
     }
 
     /// Calculate field potential gradient.
     pub fn get_potential_grad(&self, waypoint_id: usize, position: Vec2) -> Vec2 {
-        // Calculate potential gradient by Sobel filter
-
-        let potential = &self.potentials[waypoint_id];
+        let potential = &self.potential_maps[waypoint_id];
         let position = position / self.unit - Vec2::splat(0.5);
-        let mut grad = Vec2::ZERO;
-
-        for y in -1..=1 {
-            for x in [-1, 1] {
-                let position = position + vec2(x as f32, y as f32);
-                let u = util::bilinear(&potential, position);
-                let s_x = (if y == 0 { 2.0 } else { 1.0 }) * -x as f32;
-                grad.x += u * s_x;
-            }
-        }
-
-        for x in -1..=1 {
-            for y in [-1, 1] {
-                let position = position + vec2(x as f32, y as f32);
-                let u = util::bilinear(&potential, position);
-                let s_y = (if x == 0 { 2.0 } else { 1.0 }) * -y as f32;
-                grad.y += u * s_y;
-            }
-        }
-
-        grad
+        util::sobel_filter(&potential, position)
     }
 
     /// Calculate gradient of distance from obstacles.
     pub fn get_obstacle_distance_grad(&self, position: Vec2) -> Vec2 {
-        // Calculate potential gradient by Sobel filter
-
         let position = position / self.unit - Vec2::splat(0.5);
-        let mut grad = Vec2::ZERO;
+        util::sobel_filter(&self.distance_map, position)
+        // let mut grad = Vec2::ZERO;
 
-        for y in -1..=1 {
-            for x in [-1, 1] {
-                let position = position + vec2(x as f32, y as f32);
-                let u = util::bilinear(&self.distance_from_obstacle, position);
-                let s_x = (if y == 0 { 2.0 } else { 1.0 }) * -x as f32;
-                grad.x += u * s_x;
-            }
-        }
+        // for y in -1..=1 {
+        //     for x in [-1, 1] {
+        //         let position = position + vec2(x as f32, y as f32);
+        //         let u = util::bilinear(&self.distance_from_obstacle, position);
+        //         let s_x = (if y == 0 { 2.0 } else { 1.0 }) * -x as f32;
+        //         grad.x += u * s_x;
+        //     }
+        // }
 
-        for x in -1..=1 {
-            for y in [-1, 1] {
-                let position = position + vec2(x as f32, y as f32);
-                let u = util::bilinear(&self.distance_from_obstacle, position);
-                let s_y = (if x == 0 { 2.0 } else { 1.0 }) * -y as f32;
-                grad.y += u * s_y;
-            }
-        }
+        // for x in -1..=1 {
+        //     for y in [-1, 1] {
+        //         let position = position + vec2(x as f32, y as f32);
+        //         let u = util::bilinear(&self.distance_from_obstacle, position);
+        //         let s_y = (if x == 0 { 2.0 } else { 1.0 }) * -y as f32;
+        //         grad.y += u * s_y;
+        //     }
+        // }
 
-        grad
+        // grad
     }
 }
 
@@ -356,9 +332,9 @@ mod tests {
 
         println!("{:?}", field.obstacle_exist.map(|v| if *v { 1 } else { 0 }));
 
-        println!("{:?}", field.potentials[0].map(|v| *v as i32));
+        println!("{:?}", field.potential_maps[0].map(|v| *v as i32));
 
-        println!("{:?}", field.get_field_potential(0, vec2(-1.5, 2.0)));
+        println!("{:?}", field.get_potential(0, vec2(-1.5, 2.0)));
 
         // let mut target_map = Array2::from_elem(field.shape, false);
         // target_map[(10, 5)] = true;

@@ -57,6 +57,23 @@ pub fn bilinear(grid: &Array2<f32>, pos: Vec2) -> f32 {
     y
 }
 
+/// Apply Sobel operator on grid at given position.
+pub fn sobel_filter(grid: &Array2<f32>, pos: Vec2) -> Vec2 {
+    let u00 = bilinear(&grid, pos + vec2(-1.0, -1.0));
+    let u01 = bilinear(&grid, pos + vec2(0.0, -1.0));
+    let u02 = bilinear(&grid, pos + vec2(1.0, -1.0));
+    let u10 = bilinear(&grid, pos + vec2(-1.0, 0.0));
+    let u12 = bilinear(&grid, pos + vec2(1.0, 0.0));
+    let u20 = bilinear(&grid, pos + vec2(-1.0, 1.0));
+    let u21 = bilinear(&grid, pos + vec2(0.0, 1.0));
+    let u22 = bilinear(&grid, pos + vec2(1.0, 1.0));
+
+    vec2(
+        u00 + u10 + u10 + u20 - u02 - u12 - u12 - u22,
+        u00 + u01 + u01 + u02 - u20 - u21 - u21 - u22,
+    )
+}
+
 /// Spawn a random integer based on Poisson distribution.
 pub fn poisson(lambda: f64) -> i32 {
     let mut y = 0;

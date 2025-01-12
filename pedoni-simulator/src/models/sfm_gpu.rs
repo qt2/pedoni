@@ -51,18 +51,18 @@ impl PedestrianModel for SocialForceModelGpu {
             .unwrap();
 
         let potential_map_data: Vec<f32> = field
-            .potentials
+            .potential_maps
             .iter()
             .flat_map(|grid| grid.iter().cloned())
             .collect();
-        let distance_map_data: Vec<f32> = field.distance_from_obstacle.iter().cloned().collect();
+        let distance_map_data: Vec<f32> = field.distance_map.iter().cloned().collect();
 
         let potential_map_buffer = Image::builder()
             .channel_data_type(ImageChannelDataType::Float)
             .channel_order(ImageChannelOrder::R)
             .image_type(MemObjectType::Image2dArray)
-            .dims((field.shape.1, field.shape.0, field.potentials.len()))
-            .array_size(field.potentials.len())
+            .dims((field.shape.1, field.shape.0, field.potential_maps.len()))
+            .array_size(field.potential_maps.len())
             .copy_host_slice(&potential_map_data)
             .queue(pq.queue().clone())
             .build()
@@ -110,7 +110,7 @@ impl PedestrianModel for SocialForceModelGpu {
         for cell in self.neighbor_grid.data.iter() {
             for j in 0..cell.len() {
                 let p = self.pedestrians.get(cell[j] as usize).unwrap().to_owned();
-                if field.get_field_potential(p.destination as usize, p.position.to_glam()) > 0.25 {
+                if field.get_potential(p.destination as usize, p.position.to_glam()) > 0.25 {
                     sorted_pedestrians.push(p);
                     index += 1;
                 }
