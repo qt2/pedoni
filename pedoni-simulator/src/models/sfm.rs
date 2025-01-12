@@ -159,6 +159,39 @@ impl PedestrianModel for SocialForceModel {
                             }
                         }
                     }
+                } else {
+                    for i in 0..pedestrians.len() {
+                        if i != id {
+                            let difference = pos - self.pedestrians.position[i];
+                            let distance_squared = difference.length_squared();
+                            if distance_squared > 16.0 {
+                                continue;
+                            }
+
+                            let distance = distance_squared.sqrt();
+                            let direction = difference.normalize();
+
+                            // if distance <= 0.4 {
+                            //     acc += 1000.0 * direction;
+                            //     continue;
+                            // }
+
+                            let vel_i = pedestrians.velocity[i];
+                            let t1 = difference - vel_i * 0.1;
+                            let t1_length = t1.length();
+                            let t2 = distance + t1_length;
+                            let b = (t2.powi(2) - (vel_i.length() * 0.1).powi(2)).sqrt() * 0.5;
+
+                            let nabla_b = t2 * (direction + t1 / t1_length) / (4.0 * b);
+                            let mut force = 2.1 / 0.3 * (-b / 0.3).exp() * nabla_b;
+
+                            if e.dot(-force) < force.length() * COS_PHI {
+                                force *= 0.5;
+                            }
+
+                            acc += force;
+                        }
+                    }
                 }
 
                 // Calculate force from obstacles.
