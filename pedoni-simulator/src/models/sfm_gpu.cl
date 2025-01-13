@@ -40,18 +40,6 @@ inline float2 sobel_array(image2d_array_t grids, float4 coord) {
                     u00 + u01 + u01 + u02 - u20 - u21 - u21 - u22);
 }
 
-// inline float random(uint x) {
-//     int id = get_global_id(0);
-//     x += id << 8;
-
-//     // XOR Shift
-//     x ^= x << 13;
-//     x ^= x >> 17;
-//     x ^= x << 5;
-
-//     return (float)(x & 0xFFFFFF) / 0x1000000; // normalization
-// }
-
 __kernel void
 calc_next_state(uint ped_count, __global float2 *positions,
                 __global float2 *velocities, __global float *desired_speeds,
@@ -95,7 +83,7 @@ calc_next_state(uint ped_count, __global float2 *positions,
                 float2 difference = pos - positions[i];
                 float distance = length(difference);
 
-                if (distance <= 4.0f) {
+                if (distance <= 2.0f) {
                     float2 direction = normalize(difference);
                     float2 vel_i = velocities[i];
                     float2 t1 = difference - vel_i * 0.1f;

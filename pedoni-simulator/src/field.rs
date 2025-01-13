@@ -3,7 +3,7 @@ use std::{cmp::Reverse, collections::BinaryHeap};
 
 use geo::LineString;
 use geo_rasterize::{BinaryBuilder, LabelBuilder};
-use glam::{vec2, Vec2};
+use glam::Vec2;
 use ndarray::{s, Array2};
 use ordered_float::NotNan;
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
@@ -255,27 +255,6 @@ impl Field {
     pub fn get_obstacle_distance_grad(&self, position: Vec2) -> Vec2 {
         let position = position / self.unit - Vec2::splat(0.5);
         util::sobel_filter(&self.distance_map, position)
-        // let mut grad = Vec2::ZERO;
-
-        // for y in -1..=1 {
-        //     for x in [-1, 1] {
-        //         let position = position + vec2(x as f32, y as f32);
-        //         let u = util::bilinear(&self.distance_from_obstacle, position);
-        //         let s_x = (if y == 0 { 2.0 } else { 1.0 }) * -x as f32;
-        //         grad.x += u * s_x;
-        //     }
-        // }
-
-        // for x in -1..=1 {
-        //     for y in [-1, 1] {
-        //         let position = position + vec2(x as f32, y as f32);
-        //         let u = util::bilinear(&self.distance_from_obstacle, position);
-        //         let s_y = (if x == 0 { 2.0 } else { 1.0 }) * -y as f32;
-        //         grad.y += u * s_y;
-        //     }
-        // }
-
-        // grad
     }
 }
 

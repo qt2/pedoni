@@ -58,7 +58,7 @@ impl PedestrianModel for SocialForceModel {
         if let Some(neighbor_grid) = &mut self.neighbor_grid {
             neighbor_grid.update(self.pedestrians.position.iter().cloned());
 
-            let mut sorted_pedestrians = PedestrianVec::default();
+            let mut sorted_pedestrians = PedestrianVec::with_capacity(self.pedestrians.len());
             self.neighbor_grid_indices = Vec::with_capacity(neighbor_grid.data.len() + 1);
             self.neighbor_grid_indices.push(0);
             let mut index = 0;
@@ -76,7 +76,7 @@ impl PedestrianModel for SocialForceModel {
 
             self.pedestrians = sorted_pedestrians;
         } else {
-            let mut pedestrians = PedestrianVec::default();
+            let mut pedestrians = PedestrianVec::with_capacity(self.pedestrians.len());
 
             for p in self.pedestrians.iter() {
                 if field.get_potential(*p.destination as usize, *p.position) > 0.25 {
@@ -130,17 +130,12 @@ impl PedestrianModel for SocialForceModel {
                             if i != id {
                                 let difference = pos - self.pedestrians.position[i];
                                 let distance_squared = difference.length_squared();
-                                if distance_squared > 16.0 {
+                                if distance_squared > 4.0 {
                                     continue;
                                 }
 
                                 let distance = distance_squared.sqrt();
                                 let direction = difference.normalize();
-
-                                // if distance <= 0.4 {
-                                //     acc += 1000.0 * direction;
-                                //     continue;
-                                // }
 
                                 let vel_i = pedestrians.velocity[i];
                                 let t1 = difference - vel_i * 0.1;
@@ -164,17 +159,12 @@ impl PedestrianModel for SocialForceModel {
                         if i != id {
                             let difference = pos - self.pedestrians.position[i];
                             let distance_squared = difference.length_squared();
-                            if distance_squared > 16.0 {
+                            if distance_squared > 4.0 {
                                 continue;
                             }
 
                             let distance = distance_squared.sqrt();
                             let direction = difference.normalize();
-
-                            // if distance <= 0.4 {
-                            //     acc += 1000.0 * direction;
-                            //     continue;
-                            // }
 
                             let vel_i = pedestrians.velocity[i];
                             let t1 = difference - vel_i * 0.1;

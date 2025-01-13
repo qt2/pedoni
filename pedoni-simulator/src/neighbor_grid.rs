@@ -20,14 +20,15 @@ impl NeighborGrid {
     }
 
     pub fn update(&mut self, positions: impl IntoIterator<Item = Vec2>) {
-        self.data = Array2::from_elem(self.shape, ThinVec::new());
+        // self.data = Array2::from_elem(self.shape, ThinVec::new());
+        self.data.fill(ThinVec::new());
 
         for (i, pos) in positions.into_iter().enumerate() {
             let ix = (pos / self.unit).as_ivec2();
             let ix = Index::new(ix.x, ix.y);
             if let Some(neighbors) = self.data.get_mut(ix) {
                 if !neighbors.has_capacity() {
-                    neighbors.reserve(8);
+                    neighbors.reserve(16);
                 }
                 neighbors.push(i as u32);
             }
