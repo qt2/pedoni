@@ -92,7 +92,11 @@ fn main() -> anyhow::Result<()> {
         CONTROL_STATE.lock().unwrap().paused = false;
 
         loop {
-            if SIG_INT.load(std::sync::atomic::Ordering::SeqCst) {
+            if SIG_INT.load(std::sync::atomic::Ordering::SeqCst)
+                || args.max_steps.is_some_and(|limit| {
+                    SIMULATOR_STATE.lock().unwrap().diagnostic_log.total_steps > limit
+                })
+            {
                 let current_time = chrono::Local::now();
                 fs::create_dir("logs").ok();
                 let log_path: PathBuf = [

@@ -38,6 +38,9 @@ pub struct Args {
     /// Local work size of GPU kernel
     #[arg(long)]
     pub work_size: Option<usize>,
+    /// Max steps to simulate (this affects only in headless mode)
+    #[arg(long)]
+    pub max_steps: Option<usize>,
 }
 
 impl Args {
