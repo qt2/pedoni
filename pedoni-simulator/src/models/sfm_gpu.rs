@@ -1,4 +1,4 @@
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use ocl::{
     core::{ImageChannelDataType, ImageChannelOrder, MemObjectType, ProfilingInfo},
@@ -112,25 +112,38 @@ impl PedestrianModel for SocialForceModelGpu {
             });
         }
 
-        dbg!("::");
+        // self.neighbor_grid
+        // .update(self.pedestrians.position.iter().map(|p| p.to_glam()));
 
-        let instant = Instant::now();
-        // self.neighbor_grid.update_only_active(
-        //     self.pedestrians.position.iter().map(|p| p.to_glam()),
-        //     self.pedestrians
-        //         .iter()
-        //         .map(|p| field.get_potential(*p.destination as usize, p.position.to_glam()) > 0.25),
-        // );
+        self.neighbor_grid.update_only_active(
+            self.pedestrians.position.iter().map(|p| p.to_glam()),
+            self.pedestrians
+                .iter()
+                .map(|p| field.get_potential(*p.destination as usize, p.position.to_glam()) > 0.25),
+        );
 
-        self.neighbor_grid
-            .update(self.pedestrians.position.iter().map(|p| p.to_glam()));
-        dbg!(instant.elapsed());
+        // let unit = self.neighbor_grid.unit;
+        // let width = self.neighbor_grid.shape.1 as i32;
+        // let height = self.neighbor_grid.shape.0 as i32;
+
+        // let mut pairs: Vec<(usize, i32)> = self
+        //     .pedestrians
+        //     .position
+        //     .iter()
+        //     .enumerate()
+        //     .map(|(i, pos)| {
+        //         let index = (pos.to_glam() / unit).as_ivec2();
+        //         let mut index = index.y * width + index.x;
+        //         index = index.clamp(0, width * height);
+        //         (i, index)
+        //     })
+        //     .collect();
+        // pairs.par_sort_unstable_by_key(|pair| pair.1);
 
         let mut sorted = PedestrianVec::default();
         self.neighbor_grid_indices = Vec::with_capacity(self.neighbor_grid.data.len() + 1);
         self.neighbor_grid_indices.push(0);
 
-        let instant = Instant::now();
         parallel! {
             || {
                 for cell in self.neighbor_grid.data.iter() {
@@ -168,7 +181,6 @@ impl PedestrianModel for SocialForceModelGpu {
                 }
             }
         }
-        dbg!(instant.elapsed());
 
         self.pedestrians = sorted;
     }
