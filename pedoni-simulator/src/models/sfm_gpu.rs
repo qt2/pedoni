@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use ocl::{
     core::{ImageChannelDataType, ImageChannelOrder, MemObjectType, ProfilingInfo},
@@ -36,6 +36,19 @@ pub struct Pedestrian {
     destination: u32,
     velocity: Float2,
     desired_speed: f32,
+}
+
+macro_rules! parallel {
+    ($task:expr) => {
+        $task()
+    };
+    ($task1:expr, $task2:expr) => {
+        rayon::join($task1, $task2)
+    };
+    ($task1:expr, $task2:expr, $($rest:expr),+) => {{
+        rayon::join($task1, || parallel!($task2, $($rest),*));
+        ()
+    }};
 }
 
 impl PedestrianModel for SocialForceModelGpu {
@@ -99,26 +112,65 @@ impl PedestrianModel for SocialForceModelGpu {
             });
         }
 
+        dbg!("::");
+
+        let instant = Instant::now();
+        // self.neighbor_grid.update_only_active(
+        //     self.pedestrians.position.iter().map(|p| p.to_glam()),
+        //     self.pedestrians
+        //         .iter()
+        //         .map(|p| field.get_potential(*p.destination as usize, p.position.to_glam()) > 0.25),
+        // );
+
         self.neighbor_grid
             .update(self.pedestrians.position.iter().map(|p| p.to_glam()));
+        dbg!(instant.elapsed());
 
-        let mut sorted_pedestrians = PedestrianVec::default();
+        let mut sorted = PedestrianVec::default();
         self.neighbor_grid_indices = Vec::with_capacity(self.neighbor_grid.data.len() + 1);
         self.neighbor_grid_indices.push(0);
-        let mut index = 0;
 
-        for cell in self.neighbor_grid.data.iter() {
-            for j in 0..cell.len() {
-                let p = self.pedestrians.get(cell[j] as usize).unwrap().to_owned();
-                if field.get_potential(p.destination as usize, p.position.to_glam()) > 0.25 {
-                    sorted_pedestrians.push(p);
-                    index += 1;
+        let instant = Instant::now();
+        parallel! {
+            || {
+                for cell in self.neighbor_grid.data.iter() {
+                    for f in cell.iter() {
+                        sorted.position.push(self.pedestrians.position[*f as usize])
+                    }
+                }
+            },
+            || {
+                for cell in self.neighbor_grid.data.iter() {
+                    for f in cell.iter() {
+                        sorted
+                            .destination
+                            .push(self.pedestrians.destination[*f as usize])
+                    }
+                }
+            },
+            || {
+                for cell in self.neighbor_grid.data.iter() {
+                    for f in cell.iter() {
+                        sorted.velocity.push(self.pedestrians.velocity[*f as usize])
+                    }
+                }
+            },
+            || {
+                for cell in self.neighbor_grid.data.iter() {
+                    for f in cell.iter() {
+                        sorted.desired_speed.push(self.pedestrians.desired_speed[*f as usize])
+                    }
+                }
+            },
+            || {
+                for cell in self.neighbor_grid.data.iter() {
+                    self.neighbor_grid_indices.push(cell.len() as u32);
                 }
             }
-            self.neighbor_grid_indices.push(index as u32);
         }
+        dbg!(instant.elapsed());
 
-        self.pedestrians = sorted_pedestrians;
+        self.pedestrians = sorted;
     }
 
     fn update_states(&mut self, _scenario: &Scenario, field: &Field) {

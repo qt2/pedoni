@@ -34,4 +34,26 @@ impl NeighborGrid {
             }
         }
     }
+
+    pub fn update_only_active(
+        &mut self,
+        positions: impl IntoIterator<Item = Vec2>,
+        actives: impl IntoIterator<Item = bool>,
+    ) {
+        // self.data = Array2::from_elem(self.shape, ThinVec::new());
+        self.data.fill(ThinVec::new());
+
+        for (i, (active, pos)) in actives.into_iter().zip(positions.into_iter()).enumerate() {
+            if active {
+                let ix = (pos / self.unit).as_ivec2();
+                let ix = Index::new(ix.x, ix.y);
+                if let Some(neighbors) = self.data.get_mut(ix) {
+                    if !neighbors.has_capacity() {
+                        neighbors.reserve(16);
+                    }
+                    neighbors.push(i as u32);
+                }
+            }
+        }
+    }
 }
