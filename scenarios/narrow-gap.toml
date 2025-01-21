@@ -12,10 +12,10 @@ line = [[10, 0], [10, 10]]
 width = 2
 
 [[obstacles]]
-line = [[10, 11], [10, 20]]
+line = [[10, 13], [10, 20]]
 width = 2
 
 [[pedestrians]]
 origin = 0
 destination = 1
-spawn = { kind = "once", count = 40 }
+spawn = { kind = "once", count = 50 }

@@ -58,6 +58,27 @@ fn main() -> anyhow::Result<()> {
     let field_size = scenario.field.size;
     SIMULATOR_STATE.lock().unwrap().scenario = scenario.clone();
 
+    // {
+    //     let ts: Vec<i32> = (0..20)
+    //         .into_iter()
+    //         .map(|_i| {
+    //             let mut simulator = Simulator::new(args.to_simulator_options(), scenario.clone());
+    //             let mut t = 0;
+    //             while t < 2000 {
+    //                 let step_metrics = simulator.tick();
+    //                 if step_metrics.active_ped_count <= 0 {
+    //                     break;
+    //                 }
+    //                 t += 1;
+    //             }
+    //             t
+    //         })
+    //         .collect();
+
+    //     println!("{ts:?}");
+    //     return Ok(());
+    // }
+
     let mut simulator = Simulator::new(args.to_simulator_options(), scenario);
 
     thread::spawn(move || loop {
