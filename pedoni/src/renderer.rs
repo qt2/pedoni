@@ -31,8 +31,9 @@ impl Renderer {
 }
 
 impl PittoreApp for Renderer {
-    fn init(&mut self, _c: &mut Context) {
-        println!("Press [Space] to play/pause.")
+    fn init(&mut self, c: &mut Context) {
+        println!("Press [Space] to play/pause.");
+        c.set_background_color(Color::WHITE);
     }
 
     fn update(&mut self, c: &mut Context) {
@@ -69,7 +70,7 @@ impl PittoreApp for Renderer {
             .scenario
             .waypoints
             .iter()
-            .map(|wp| Line2d::new(wp.line[0], wp.line[1], 0.25, Color::YELLOW));
+            .map(|wp| Line2d::new(wp.line[0], wp.line[1], 0.25, Color::from_rgb(255, 128, 0)));
         c.draw_lines(waypoints);
 
         // Draw pedestrians.

@@ -1,4 +1,4 @@
-use glam::{IVec2, Vec2};
+use glam::{vec2, IVec2, Vec2};
 use rayon::prelude::*;
 use soa_derive::StructOfArray;
 
@@ -6,7 +6,7 @@ use crate::{
     field::Field,
     neighbor_grid::NeighborGrid,
     scenario::Scenario,
-    util::{distance_from_line, Index},
+    util::{self, Index},
     SimulatorOptions,
 };
 
@@ -192,19 +192,49 @@ impl PedestrianModel for SocialForceModel {
                     acc += force;
                 } else {
                     for obs in &scenario.obstacles {
-                        let diff = distance_from_line(pos, obs.line);
-                        let distance = diff.length();
-                        let direction = diff.normalize();
-                        let force = 10.0 * 0.2 * (-distance / 0.2).exp() * direction;
+                        let v = obs.line;
+                        let w = obs.width;
+                        let d = v[1] - v[0];
+                        let h = d.length();
+                        let n = vec2(d.y, -d.x).normalize_or_zero() * w * 0.5;
+                        let lines = vec![
+                            [v[0] + n, v[0] - n],
+                            [v[1] + n, v[1] - n],
+                            [v[0] + n, v[1] + n],
+                            [v[0] - n, v[1] - n],
+                        ];
+                        let diffs: Vec<_> = lines
+                            .into_iter()
+                            .map(|line| util::distance_from_line(pos, line))
+                            .collect();
+                        let distances: Vec<_> = diffs.iter().map(|diff| diff.length()).collect();
+                        if distances[0] < w
+                            && distances[1] < w
+                            && distances[2] < h
+                            && distances[3] < h
+                        {
+                            continue;
+                        }
+                        let (min_index, min_d) = distances
+                            .iter()
+                            .enumerate()
+                            .min_by(|(_, d1), (_, d2)| d1.partial_cmp(d2).unwrap())
+                            .unwrap();
+                        let direction = diffs[min_index].normalize();
+
+                        let force = 10.0 * 0.2 * (-min_d / 0.2).exp() * direction;
                         acc += force;
+
+                        // for line in lines {
+                        //     let diff = util::distance_from_line(pos, line);
+                        //     let distance = diff.length();
+                        //     let direction = diff.normalize();
+
+                        //     let force = 10.0 * 0.2 * (-distance / 0.2).exp() * direction;
+
+                        // }
                     }
                 }
-
-                // let force = if distance >= 0.05 {
-                //     10.0 * 0.2 * (-distance / 0.2).exp() * direction
-                // } else {
-                //     1000.0 * direction
-                // };
 
                 acc
             })
