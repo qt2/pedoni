@@ -17,8 +17,6 @@ use pedoni_simulator::{
     diagnostic::DiagnositcLog, models::Pedestrian, scenario::Scenario, Simulator,
 };
 
-use crate::renderer::Renderer;
-
 static SIMULATOR_STATE: Lazy<Mutex<SimulatorState>> =
     Lazy::new(|| Mutex::new(SimulatorState::default()));
 static CONTROL_STATE: Mutex<ControlState> = Mutex::new(ControlState {
@@ -138,7 +136,7 @@ fn main() -> anyhow::Result<()> {
             thread::sleep(Duration::from_millis(100));
         }
     } else {
-        pittore::run("Pedoni", Renderer::new(field_size));
+        renderer::run();
     }
 
     Ok(())

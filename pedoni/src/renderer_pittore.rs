@@ -1,0 +1,83 @@
+use pittore::{prelude::*, util::CameraController2d};
+
+use crate::{CONTROL_STATE, SIMULATOR_STATE};
+
+const COLORS: &[Color] = &[
+    Color::RED,
+    Color::BLUE,
+    Color::GREEN,
+    Color::CYAN,
+    Color::MAGENTA,
+    Color::YELLOW,
+];
+
+pub struct Renderer {
+    camera: CameraController2d,
+}
+
+impl Renderer {
+    pub fn new(field_size: Vec2) -> Self {
+        Renderer {
+            camera: CameraController2d {
+                camera: Camera {
+                    position: (field_size * 0.5, 0.0).into(),
+                    scaling_mode: ScalingMode::AutoMin(field_size),
+                    ..Camera::default_2d()
+                },
+                ..Default::default()
+            },
+        }
+    }
+}
+
+impl PittoreApp for Renderer {
+    fn init(&mut self, c: &mut Context) {
+        println!("Press [Space] to play/pause.");
+        c.set_background_color(Color::WHITE);
+    }
+
+    fn update(&mut self, c: &mut Context) {
+        // Handle input.
+        {
+            let mut state = CONTROL_STATE.lock().unwrap();
+            if c.key_just_pressed(KeyCode::Space) {
+                state.paused ^= true;
+            }
+
+            if c.key_just_pressed(KeyCode::KeyS) {
+                let time = chrono::Local::now()
+                    .format("%Y-%m-%d_%H%M%S_screenshot.png")
+                    .to_string();
+                c.save_screen_shot(format!("logs/{time}"));
+            }
+        }
+
+        // Apply camera transform.
+        self.camera.update_and_apply(c);
+
+        let simulator = SIMULATOR_STATE.lock().unwrap();
+
+        // Draw obstacles.
+        let obstacles = simulator
+            .scenario
+            .obstacles
+            .iter()
+            .map(|obs| Line2d::new(obs.line[0], obs.line[1], obs.width, Color::GRAY));
+        c.draw_lines(obstacles);
+
+        // Draw waypoints.
+        let waypoints = simulator
+            .scenario
+            .waypoints
+            .iter()
+            .map(|wp| Line2d::new(wp.line[0], wp.line[1], 0.25, Color::from_rgb(255, 128, 0)));
+        c.draw_lines(waypoints);
+
+        // Draw pedestrians.
+        c.draw_circles(simulator.pedestrians.iter().map(|ped| Instance2d {
+            transform: Transform2d::from_translation(ped.pos).with_scale(Vec2::splat(0.2)),
+            color: COLORS[ped.destination % COLORS.len()],
+            ..Default::default()
+        }));
+    }
+}
