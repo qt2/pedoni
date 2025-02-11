@@ -53,7 +53,6 @@ fn main() -> anyhow::Result<()> {
     CONTROL_STATE.lock().unwrap().playback_speed = args.speed;
 
     let scenario: Scenario = toml::from_str(&fs::read_to_string(&args.scenario)?)?;
-    let field_size = scenario.field.size;
     SIMULATOR_STATE.lock().unwrap().scenario = scenario.clone();
 
     // {
