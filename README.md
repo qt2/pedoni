@@ -1,9 +1,20 @@
-# Pedoni - blazingly fast pedestrian behavior simulator
+# Pedoni
+
+Blazingly fast crowd simulator for pedestrian dynamics
 
 ## Get started
 ```sh
-cargo run
+cargo run -r -- scenarios/narrow-gap.toml
 ```
 
-## Project directory
-This application creates a directory `~/.pedoni` and saves several config files.
+## Help
+```sh
+cargo run -r -- -h
+```
+
+## Directory structure
+- `/pedoni`: main application
+- `/pedoni-simulator`: simulation logic implementation
+
+## License
+MIT

@@ -135,6 +135,13 @@ fn main() -> anyhow::Result<()> {
             thread::sleep(Duration::from_millis(100));
         }
     } else {
+        info!(
+            r#"
+How to use
+- Press SPACE to pause/resume simulation
+- Drag with middle mouse button to pan
+- Scroll to zoom"#
+        );
         renderer::run();
     }
 
