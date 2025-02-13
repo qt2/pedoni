@@ -17,8 +17,6 @@ use pedoni_simulator::{
     diagnostic::DiagnositcLog, models::Pedestrian, scenario::Scenario, Simulator,
 };
 
-use crate::renderer::Renderer;
-
 static SIMULATOR_STATE: Lazy<Mutex<SimulatorState>> =
     Lazy::new(|| Mutex::new(SimulatorState::default()));
 static CONTROL_STATE: Mutex<ControlState> = Mutex::new(ControlState {
@@ -55,7 +53,6 @@ fn main() -> anyhow::Result<()> {
     CONTROL_STATE.lock().unwrap().playback_speed = args.speed;
 
     let scenario: Scenario = toml::from_str(&fs::read_to_string(&args.scenario)?)?;
-    let field_size = scenario.field.size;
     SIMULATOR_STATE.lock().unwrap().scenario = scenario.clone();
 
     // {
@@ -138,7 +135,14 @@ fn main() -> anyhow::Result<()> {
             thread::sleep(Duration::from_millis(100));
         }
     } else {
-        pittore::run("Pedoni", Renderer::new(field_size));
+        info!(
+            r#"
+How to use
+- Press SPACE to pause/resume simulation
+- Drag with middle mouse button to pan
+- Scroll to zoom"#
+        );
+        renderer::run();
     }
 
     Ok(())
