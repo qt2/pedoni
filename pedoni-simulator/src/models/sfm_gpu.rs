@@ -38,19 +38,6 @@ pub struct Pedestrian {
     desired_speed: f32,
 }
 
-macro_rules! parallel {
-    ($task:expr) => {
-        $task()
-    };
-    ($task1:expr, $task2:expr) => {
-        rayon::join($task1, $task2)
-    };
-    ($task1:expr, $task2:expr, $($rest:expr),+) => {{
-        rayon::join($task1, || parallel!($task2, $($rest),*));
-        ()
-    }};
-}
-
 impl PedestrianModel for SocialForceModelGpu {
     fn new(options: &SimulatorOptions, scenario: &Scenario, field: &Field) -> Self {
         let neighbor_grid = NeighborGrid::new(scenario.field.size, options.neighbor_grid_unit);
@@ -114,75 +101,26 @@ impl PedestrianModel for SocialForceModelGpu {
 
         // self.neighbor_grid
         // .update(self.pedestrians.position.iter().map(|p| p.to_glam()));
+        let neighbor_grid = &mut self.neighbor_grid;
+        neighbor_grid.update(self.pedestrians.position.iter().map(|p| p.to_glam()));
 
-        self.neighbor_grid.update_only_active(
-            self.pedestrians.position.iter().map(|p| p.to_glam()),
-            self.pedestrians
-                .iter()
-                .map(|p| field.get_potential(*p.destination as usize, p.position.to_glam()) > 0.25),
-        );
-
-        // let unit = self.neighbor_grid.unit;
-        // let width = self.neighbor_grid.shape.1 as i32;
-        // let height = self.neighbor_grid.shape.0 as i32;
-
-        // let mut pairs: Vec<(usize, i32)> = self
-        //     .pedestrians
-        //     .position
-        //     .iter()
-        //     .enumerate()
-        //     .map(|(i, pos)| {
-        //         let index = (pos.to_glam() / unit).as_ivec2();
-        //         let mut index = index.y * width + index.x;
-        //         index = index.clamp(0, width * height);
-        //         (i, index)
-        //     })
-        //     .collect();
-        // pairs.par_sort_unstable_by_key(|pair| pair.1);
-
-        let mut sorted = PedestrianVec::default();
-        self.neighbor_grid_indices = Vec::with_capacity(self.neighbor_grid.data.len() + 1);
+        let mut sorted_pedestrians = PedestrianVec::with_capacity(self.pedestrians.len());
+        self.neighbor_grid_indices = Vec::with_capacity(neighbor_grid.data.len() + 1);
         self.neighbor_grid_indices.push(0);
+        let mut index = 0;
 
-        parallel! {
-            || {
-                for cell in self.neighbor_grid.data.iter() {
-                    for f in cell.iter() {
-                        sorted.position.push(self.pedestrians.position[*f as usize])
-                    }
-                }
-            },
-            || {
-                for cell in self.neighbor_grid.data.iter() {
-                    for f in cell.iter() {
-                        sorted
-                            .destination
-                            .push(self.pedestrians.destination[*f as usize])
-                    }
-                }
-            },
-            || {
-                for cell in self.neighbor_grid.data.iter() {
-                    for f in cell.iter() {
-                        sorted.velocity.push(self.pedestrians.velocity[*f as usize])
-                    }
-                }
-            },
-            || {
-                for cell in self.neighbor_grid.data.iter() {
-                    for f in cell.iter() {
-                        sorted.desired_speed.push(self.pedestrians.desired_speed[*f as usize])
-                    }
-                }
-            },
-            || {
-                for cell in self.neighbor_grid.data.iter() {
-                    self.neighbor_grid_indices.push(cell.len() as u32);
+        for cell in neighbor_grid.data.iter() {
+            for j in 0..cell.len() {
+                let p = self.pedestrians.get(cell[j] as usize).unwrap().to_owned();
+                if field.get_potential(p.destination as usize, p.position.to_glam()) > 0.25 {
+                    sorted_pedestrians.push(p);
+                    index += 1;
                 }
             }
+            self.neighbor_grid_indices.push(index as u32);
         }
 
-        self.pedestrians = sorted;
+        self.pedestrians = sorted_pedestrians;
     }
 
     fn update_states(&mut self, _scenario: &Scenario, field: &Field) {
