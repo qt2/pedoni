@@ -21,6 +21,7 @@ pub struct Renderer {
     view_scale: f32,
     prev_cursor_pos: Vec2,
     cursor_pos: Vec2,
+    mouse_left_down: bool,
     mouse_center_down: bool,
     wheel_delta: f32,
 }
@@ -37,6 +38,7 @@ impl Renderer {
             view_scale,
             prev_cursor_pos: Vec2::ZERO,
             cursor_pos: Vec2::ZERO,
+            mouse_left_down: false,
             mouse_center_down: false,
             wheel_delta: 0.0,
         }
@@ -57,7 +59,7 @@ impl EventHandler for Renderer {
         cursor_delta.y = -cursor_delta.y;
         self.prev_cursor_pos = self.cursor_pos;
 
-        if self.mouse_center_down {
+        if self.mouse_center_down || self.mouse_left_down {
             self.view_target -= cursor_delta * 2.0 / (self.view_scale * width);
         }
 
@@ -142,14 +144,26 @@ impl EventHandler for Renderer {
     }
 
     fn mouse_button_down_event(&mut self, button: miniquad::MouseButton, _x: f32, _y: f32) {
-        if button == miniquad::MouseButton::Middle {
-            self.mouse_center_down = true;
+        match button {
+            miniquad::MouseButton::Left => {
+                self.mouse_left_down = true;
+            }
+            miniquad::MouseButton::Middle => {
+                self.mouse_center_down = true;
+            }
+            _ => {}
         }
     }
 
     fn mouse_button_up_event(&mut self, button: miniquad::MouseButton, _x: f32, _y: f32) {
-        if button == miniquad::MouseButton::Middle {
-            self.mouse_center_down = false;
+        match button {
+            miniquad::MouseButton::Left => {
+                self.mouse_left_down = false;
+            }
+            miniquad::MouseButton::Middle => {
+                self.mouse_center_down = false;
+            }
+            _ => {}
         }
     }
 }
