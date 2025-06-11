@@ -109,7 +109,7 @@ calc_next_state(uint ped_count, __global float2 *positions,
     // Calculate force from obstacles.
     float distance = read_imagef(distance_map, SAMP, coord).x;
     float2 direction = -normalize(sobel(distance_map, coord));
-    acc += 2.0f * native_exp(-distance / 0.2f) * direction;
+    acc += 50.0f * native_exp(-distance / 0.2f) * direction;
 
     accelerations[id] = acc;
 }

@@ -10,14 +10,6 @@ use pedoni_simulator::{diagnostic::DiagnositcLog, scenario::Scenario, Simulator}
 
 use crate::visualizer::{Visualizer, VisualizerOptions};
 
-pub const DELTA_TIME: f32 = 0.1;
-
-#[derive(Clone)]
-pub struct ControlState {
-    pub paused: bool,
-    pub playback_speed: f32,
-}
-
 fn main() -> anyhow::Result<()> {
     env_logger::builder()
         .filter_module("pedoni", log::LevelFilter::Info)
@@ -41,12 +33,16 @@ fn main() -> anyhow::Result<()> {
         .format("logs/%Y-%m-%d_%H-%M-%S_log.json")
         .to_string();
     let mut log_file = File::create(&log_path)?;
+    let mut diagnostic_log = DiagnositcLog::default();
 
     let mut simulator = Simulator::new(args.to_simulator_options(), scenario);
-    let mut diagnostic_log = DiagnositcLog::default();
 
     for step in 0..args.max_steps.unwrap_or(1000) {
         let step_metrics = simulator.tick();
+
+        if step % 10 == 0 {
+            visualizer.render(&simulator);
+        }
         if simulator.step % 100 == 0 {
             info!(
                 "Step: {:6}, Active pedestrians: {:6}",
@@ -55,10 +51,6 @@ fn main() -> anyhow::Result<()> {
         }
 
         diagnostic_log.push(step_metrics);
-
-        if step % 10 == 0 {
-            visualizer.render(&simulator);
-        }
     }
 
     info!("Exported animated GIF file: {}", animation_path);
