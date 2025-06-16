@@ -188,7 +188,7 @@ impl PedestrianModel for SocialForceModel {
                 if self.options.use_distance_map {
                     let distance = field.get_obstacle_distance(pos);
                     let direction = -field.get_obstacle_distance_grad(pos).normalize();
-                    let force = 10.0 * 0.2 * (-distance / 0.2).exp() * direction;
+                    let force = 10.0 / 0.2 * (-distance / 0.2).exp() * direction;
                     acc += force;
                 } else {
                     for obs in &scenario.obstacles {
@@ -222,7 +222,7 @@ impl PedestrianModel for SocialForceModel {
                             .unwrap();
                         let direction = diffs[min_index].normalize();
 
-                        let force = 10.0 * 0.2 * (-min_d / 0.2).exp() * direction;
+                        let force = 10.0 / 0.2 * (-min_d / 0.2).exp() * direction;
                         acc += force;
 
                         // for line in lines {
