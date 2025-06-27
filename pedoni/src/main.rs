@@ -1,4 +1,5 @@
 mod args;
+mod scenarios;
 mod visualizer;
 
 use std::fs::{self, File};

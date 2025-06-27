@@ -4,10 +4,10 @@ use soa_derive::StructOfArray;
 
 use crate::{
     field::Field,
+    map::{self, MapData},
     neighbor_grid::NeighborGrid,
     scenario::Scenario,
     util::{self, Index},
-    SimulatorOptions,
 };
 
 use super::PedestrianModel;
@@ -15,12 +15,26 @@ use super::PedestrianModel;
 /// Cosine of phi (2*phi represents the effective angle of sight of pedestrians)
 const COS_PHI: f32 = -0.17364817766693036;
 
-#[derive(Default)]
-pub struct SocialForceModel {
-    pedestrians: PedestrianVec,
-    neighbor_grid: Option<NeighborGrid>,
-    neighbor_grid_indices: Vec<u32>,
-    options: SimulatorOptions,
+#[derive(Debug)]
+pub struct SocialForceModelConfig {
+    /// Grid spacing for the potential map. (meters)
+    /// This value is applied to both potential maps and distance maps.
+    pub distance_map_spacing: f32,
+    /// Whether to use distance maps to calculate the effects by obstacles.
+    pub use_fast_obstacles: bool,
+    /// Grid spacing for the neighbor search grid. (meters)
+    /// If `None`, the neighbor search grid is not used.
+    pub neighbor_grid_spacing: Option<f32>,
+}
+
+impl Default for SocialForceModelConfig {
+    fn default() -> Self {
+        SocialForceModelConfig {
+            distance_map_spacing: 0.25,
+            use_fast_obstacles: true,
+            neighbor_grid_spacing: Some(1.4),
+        }
+    }
 }
 
 #[derive(Debug, Default, Clone, StructOfArray)]
@@ -32,21 +46,42 @@ pub struct Pedestrian {
     desired_speed: f32,
 }
 
-impl PedestrianModel for SocialForceModel {
-    fn new(options: &SimulatorOptions, scenario: &Scenario, _field: &Field) -> Self {
-        let neighbor_grid = options
-            .use_neighbor_grid
-            .then(|| NeighborGrid::new(scenario.field.size, options.neighbor_grid_unit));
+pub struct SocialForceModel {
+    config: SocialForceModelConfig,
+    map: MapData,
+    field: Field,
 
+    pedestrians: PedestrianVec,
+    neighbor_grid: Option<NeighborGrid>,
+    neighbor_grid_indices: Vec<u32>,
+}
+
+impl SocialForceModel {
+    pub fn new(config: SocialForceModelConfig) -> Self {
         SocialForceModel {
-            neighbor_grid,
-            options: options.clone(),
-            ..Default::default()
+            config,
+            map: MapData::default(),
+            field: Field::default(),
+
+            pedestrians: PedestrianVec::default(),
+            neighbor_grid: None,
+            neighbor_grid_indices: Vec::new(),
         }
     }
+}
 
-    fn spawn_pedestrians(&mut self, field: &Field, spawned_pedestrians: Vec<super::Pedestrian>) {
-        for p in spawned_pedestrians {
+impl PedestrianModel for SocialForceModel {
+    fn load_map(&mut self, map: MapData) {
+        self.field = Field::from_map(&map, self.config.distance_map_spacing);
+
+        self.neighbor_grid = self
+            .config
+            .neighbor_grid_spacing
+            .map(|spacing| NeighborGrid::new(map.size, spacing));
+    }
+
+    fn spawn_pedestrians(&mut self, new_pedestrians: Vec<super::Pedestrian>) {
+        for p in new_pedestrians {
             self.pedestrians.push(Pedestrian {
                 position: p.pos,
                 destination: p.destination as u32,
@@ -88,7 +123,7 @@ impl PedestrianModel for SocialForceModel {
         }
     }
 
-    fn update_states(&mut self, scenario: &Scenario, field: &Field) {
+    fn update_states(&mut self) {
         let pedestrians = &self.pedestrians;
         let accelerations: Vec<Vec2> = (0..pedestrians.len())
             .into_par_iter()
@@ -185,7 +220,7 @@ impl PedestrianModel for SocialForceModel {
                 }
 
                 // Calculate force from obstacles.
-                if self.options.use_distance_map {
+                if self.config.use_fast_obstacles {
                     let distance = field.get_obstacle_distance(pos);
                     let direction = -field.get_obstacle_distance_grad(pos).normalize();
                     let force = 10.0 / 0.2 * (-distance / 0.2).exp() * direction;
